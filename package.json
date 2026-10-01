@@ -1,0 +1,13 @@
+{
+  "name": "whipbench-tooling",
+  "private": true,
+  "description": "Tooling only: the Pages site generator, the backlog scripts and the leak check. whipbench itself is a Go binary.",
+  "type": "module",
+  "scripts": {
+    "test": "node scripts/backlog_test.mjs && node scripts/leakcheck_test.mjs",
+    "backlog": "node scripts/backlog.mjs lint && node scripts/backlog.mjs check",
+    "leakcheck": "node scripts/leakcheck.mjs",
+    "build:site": "node site/build.mjs"
+  },
+  "devDependencies": { "marked": "^17.0.0" }
+}

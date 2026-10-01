@@ -1,0 +1,13 @@
+{
+  "name": "mediamtx-local-50",
+  "whip": "http://127.0.0.1:8889/bench/whip",
+  "whep": "http://127.0.0.1:8889/bench/whep",
+  "codec": "vp8",
+  "viewers": 50,
+  "rampSeconds": 10,
+  "holdSeconds": 30,
+  "warmupSeconds": 2,
+  "joinTimeoutSeconds": 10,
+  "includeLoopback": true,
+  "metrics": "127.0.0.1:9464"
+}

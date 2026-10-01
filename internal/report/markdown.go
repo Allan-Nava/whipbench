@@ -1,0 +1,137 @@
+package report
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+
+	"github.com/Allan-Nava/whipbench/internal/stats"
+)
+
+// Markdown renders the report for a person. An invalid run prints its verdict in
+// place of the aggregate table: the numbers stay in the JSON, marked invalid, for
+// anyone debugging the run, but the page meant for reading does not show them.
+func (r *Report) Markdown() string {
+	var b strings.Builder
+	w := func(format string, a ...any) { fmt.Fprintf(&b, format, a...) }
+	title := r.Scenario.Name
+	if title == "" {
+		title = "whipbench " + r.Command
+	}
+	w("# %s\n\n", esc(title))
+	w("| | |\n|---|---|\n")
+	w("| whipbench | %s |\n", esc(r.Version))
+	w("| started | %s |\n", r.StartedAt.Format("2006-01-02 15:04:05Z"))
+	w("| duration | %.1f s |\n", r.FinishedAt.Sub(r.StartedAt).Seconds())
+	if r.Server.WHIPHost != "" {
+		w("| WHIP host | `%s` |\n", esc(r.Server.WHIPHost))
+	}
+	w("| WHEP host | `%s` |\n", esc(r.Server.WHEPHost))
+	s := r.Scenario
+	w("| scenario | %d viewers, ramp %gs, hold %gs, warmup %gs, join timeout %gs, codec %s |\n",
+		s.Viewers, s.RampSeconds, s.HoldSeconds, s.WarmupSeconds, s.JoinTimeoutSeconds, s.Codec)
+	w("| client | %s/%s, %d CPUs, %s |\n\n", r.Client.OS, r.Client.Arch, r.Client.CPUs, r.Client.Go)
+
+	a := r.Aggregate
+	w("## Verdict\n\n**%s.**\n\n", esc(a.Verdict))
+	w("%d viewers asked for, %d joined, %d failed (%s%%), %d dropped after joining.\n\n",
+		a.Viewers, a.Joined, a.Failed, trim(a.FailedPercent), a.Dropped)
+
+	if a.Valid {
+		w("## Aggregate\n\n")
+		w("| metric | n | p50 | p95 | p99 | min | max |\n|---|---:|---:|---:|---:|---:|---:|\n")
+		row := func(name string, sm stats.Summary, unit string) {
+			if sm.N == 0 {
+				w("| %s | 0 | — | — | — | — | — |\n", name)
+				return
+			}
+			f := func(v float64) string { return fmt.Sprintf("%.1f%s", v, unit) }
+			if unit == " s" || unit == "%" {
+				f = func(v float64) string { return fmt.Sprintf("%.2f%s", v, unit) }
+			}
+			w("| %s | %d | %s | %s | %s | %s | %s |\n", name, sm.N, f(sm.P50), f(sm.P95), f(sm.P99), f(sm.Min), f(sm.Max))
+		}
+		row("join: first keyframe", a.FirstKeyframeMs, " ms")
+		row("join: first RTP packet", a.FirstRTPMs, " ms")
+		row("signalling (POST → answer)", a.SignallingMs, " ms")
+		if a.Latency.Available && a.Latency.Ms != nil {
+			row("one-way delay (stamped packets)", *a.Latency.Ms, " ms")
+		}
+		row("loss per viewer", a.LossPercent, "%")
+		row("jitter per viewer", a.JitterMs, " ms")
+		row("keyframe interval per viewer", a.KeyframeS, " s")
+		w("\n")
+		if !a.Latency.Available {
+			w("**Latency: unavailable** — %s.\n\n", esc(a.Latency.Reason))
+		} else if a.Latency.Reason != "" {
+			w("Latency %s.\n\n", esc(a.Latency.Reason))
+		}
+		w("Packets: %d received, %d lost (%.3f%% of expected), %d stalls across all viewers.\n\n",
+			a.PacketsReceived, a.PacketsLost, a.LossTotal, a.Stalls)
+	}
+
+	if p := r.Publisher; p != nil {
+		w("## Publisher\n\n")
+		stamp := "yes"
+		if !p.Stamped {
+			stamp = "no — the WHIP answer did not accept abs-capture-time"
+		}
+		w("codec %s, connected in %.0f ms, %d frames and %d packets sent over %.1f s (%d loops), schedule slips %d, send-time stamp: %s.",
+			p.Codec, p.ConnectMs, p.FramesSent, p.PacketsSent, p.SendingSeconds, p.Loops, p.ScheduleSlips, stamp)
+		if p.Error != "" {
+			w(" Error: %s (`%s`).", esc(p.Error), p.ErrorKind)
+		}
+		w("\n\n")
+	}
+
+	if len(r.Errors) > 0 {
+		w("## Errors\n\n| kind | count |\n|---|---:|\n")
+		keys := make([]string, 0, len(r.Errors))
+		for k := range r.Errors {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			w("| `%s` | %d |\n", esc(k), r.Errors[k])
+		}
+		w("\n")
+	}
+
+	w("## Viewers\n\n")
+	w("| id | start | joined | first RTP | first keyframe | received | lost | loss | jitter | keyframe | stalls | latency p50 | latency p99 | error |\n")
+	w("|---:|---:|:---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|\n")
+	for _, v := range r.Viewers {
+		joined := "no"
+		if v.Joined {
+			joined = "yes"
+		}
+		lat50, lat99 := "n/a", "n/a"
+		if v.Latency.Available && v.Latency.Ms != nil {
+			lat50, lat99 = fmt.Sprintf("%.1f ms", v.Latency.Ms.P50), fmt.Sprintf("%.1f ms", v.Latency.Ms.P99)
+		}
+		kf := "—"
+		if v.RTP.Keyframes > 1 {
+			kf = fmt.Sprintf("%.2f s", v.RTP.KeyframeIntervalMeanS)
+		}
+		w("| %d | %.0f ms | %s | %s | %s | %d | %d | %.2f%% | %.2f ms | %s | %d | %s | %s | %s |\n",
+			v.ID, v.StartOffsetMs, joined, msOrDash(v.FirstRTPMs), msOrDash(v.FirstKeyframeMs),
+			v.RTP.Received, v.RTP.Lost, v.RTP.LossPercent, v.RTP.JitterMs, kf, v.RTP.Stalls, lat50, lat99, esc(v.ErrorKind))
+	}
+	w("\n## Method\n\n")
+	for _, m := range r.Method {
+		w("- %s\n", esc(m))
+	}
+	return b.String()
+}
+
+func msOrDash(v *float64) string {
+	if v == nil {
+		return "—"
+	}
+	return fmt.Sprintf("%.0f ms", *v)
+}
+
+// esc keeps a value from breaking a table row.
+func esc(s string) string {
+	return strings.NewReplacer("|", `\|`, "\n", " ").Replace(s)
+}

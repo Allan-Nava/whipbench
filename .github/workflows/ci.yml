@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # gofmt, vet, the tests under the race detector — unit tests and real publisher →
+  # relay → viewer round trips through internal/testserver on loopback, no external
+  # server — then static builds for the four targets a release ships.
+  go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - run: go vet ./...
+      - run: go test -race -count=1 ./...
+      - name: Build static binaries
+        run: |
+          set -eu
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
+            CGO_ENABLED=0 GOOS="${target%/*}" GOARCH="${target#*/}" \
+              go build -trimpath -ldflags "-s -w" -o "dist/whipbench-${target%/*}-${target#*/}" ./cmd/whipbench
+          done
+          file dist/* && ls -la dist/
+      # VERSION vs CHANGELOG vs README, and the statements the README must carry.
+      - run: ./scripts/check-repo.sh
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2
+
+  # Nothing private in the tracked files or anywhere in the history: home paths, file
+  # URLs, e-mail addresses, private IPs, credential-shaped strings, attribution
+  # trailers, and the names on a private denylist when the LEAKCHECK_DENYLIST secret
+  # is configured. The full history, because a forward fix leaves the leak readable.
+  leaks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: node scripts/leakcheck_test.mjs
+      - run: node scripts/leakcheck.mjs
+        env:
+          LEAKCHECK_DENYLIST: ${{ secrets.LEAKCHECK_DENYLIST }}
+
+  # BACKLOG.md is the single source of truth; ROADMAP.md is generated from it.
+  backlog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: node scripts/backlog.mjs lint
+      - run: node scripts/backlog.mjs check
+      - run: node scripts/backlog_test.mjs
