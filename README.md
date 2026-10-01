@@ -143,7 +143,7 @@ The end-to-end tests need no network and no external server: `internal/testserve
 
 ## Roadmap
 
-[BACKLOG.md](BACKLOG.md) is the plan and [ROADMAP.md](ROADMAP.md) is generated from it. In short: v0.1.0 decides the latency method (WB-1) and records a live run against MediaMTX with the first report; v0.2.0 adds simulcast, layer switches and metrics; v0.3.0 is the comparative report across four servers and a write-up.
+[BACKLOG.md](BACKLOG.md) is the plan and [ROADMAP.md](ROADMAP.md) is generated from it. In short: v0.1.0 decides the latency method (WB-1) and records a live run against MediaMTX with the first report; v0.2.0 adds simulcast, layer switches and metrics; v0.3.0 is the comparative report across four servers and a write-up; v0.4.0 spreads the load over several machines and reports the client's own ceiling; v0.5.0 runs whipbench in CI with assertions and a GitHub Action; v0.6.0 measures what the viewer sees — freezes, picture quality, impaired networks; and v1.0.0 freezes the report schema, the CLI and the scenario keys, with every published number reproducible.
 
 ## License
 

@@ -104,6 +104,83 @@ publishes that report. **No v0.1.0 before WB-1 has a decided method and WB-5 is 
   service on an account whipbench's author owns, within its terms, under WB-6's rule.
   <!-- wb: prio=low size=M labels=benchmark -->
 
+## v0.4.0 — Load from many machines <!-- ms: phase=later -->
+
+One client machine runs out before a server does. This milestone spreads a scenario over
+several hosts and makes the client's own limit part of the report, so a saturated client
+can never be mistaken for a slow server.
+
+- [ ] **WB-24 — Coordinated multi-host runs**: `whipbench agent` on each load host and one
+  coordinator that hands out the scenario, starts every agent at a shared instant, and
+  merges their reports into one, per host and in total. Needs WB-3's clock discipline;
+  an agent whose clock offset is unknown contributes no latency samples.
+  <!-- wb: prio=high size=L labels=client,report -->
+- [ ] **WB-25 — The client's own ceiling**: calibrate how many viewers one machine sustains
+  against the in-process relay before its own CPU, scheduler or socket buffers skew the
+  numbers, record that ceiling in the report, and give no verdict on a run that exceeded
+  it. <!-- wb: prio=high size=M labels=measurement,report -->
+- [ ] **WB-26 — Container image and job specs**: a minimal image on ghcr.io, plus a
+  Kubernetes Job and a Nomad batch job running agents, so a distributed run is one apply
+  away. <!-- wb: prio=med size=M labels=release,docs -->
+
+## v0.5.0 — whipbench in CI <!-- ms: phase=later -->
+
+A server's latency regression should fail a pull request, not a launch. This milestone
+turns a scenario into a test a server project can run on every change.
+
+- [ ] **WB-27 — Assertions and their exit code**: thresholds in the scenario
+  (`"assert": {"join.p95": "<1500ms", "loss": "<0.5%"}`) checked after the run, each
+  reported pass or fail with its measured value, and a distinct exit code when one fails
+  — a no-verdict run never passes an assertion. <!-- wb: prio=high size=M labels=report,enhancement -->
+- [ ] **WB-28 — A GitHub Action**: `uses: Allan-Nava/whipbench@<tag>` that runs a scenario
+  against a server started as a service container, uploads the report as an artifact and
+  writes the summary to the job page. <!-- wb: prio=high size=M labels=release,enhancement -->
+- [ ] **WB-29 — Against a baseline**: compare a run with a stored baseline report under
+  `compare`'s refusal rules (WB-21) and its noise bounds, so a pull request shows the
+  delta and only a difference larger than run-to-run noise fails.
+  <!-- wb: prio=med size=M labels=report,measurement -->
+
+## v0.6.0 — What the viewer actually sees <!-- ms: phase=later -->
+
+Packets arriving is not video playing. Once viewers decode (WB-2), they can measure what
+a person would notice — and the network can be made worse on purpose to see how each
+server copes.
+
+- [ ] **WB-30 — Freezes and frame drops**: from the decoded frames, the count and length of
+  visible freezes and the frames that never displayed, per viewer and in total.
+  <!-- wb: prio=high size=M labels=measurement -->
+- [ ] **WB-31 — Picture quality through a transcoding server**: compare received frames with
+  the source clip (PSNR, and VMAF where the binary is available) for servers that
+  re-encode, on a sample of viewers, recorded with the method.
+  <!-- wb: prio=med size=L labels=measurement,research -->
+- [ ] **WB-32 — Impairment profiles**: named network conditions in the scenario — loss,
+  added delay, jitter, a bandwidth cap — applied per viewer in the client itself, so the
+  same profile behaves the same on every machine, and the report says which one ran.
+  <!-- wb: prio=high size=M labels=client,measurement -->
+
+## v1.0.0 — A report format others can depend on <!-- ms: phase=later -->
+
+1.0 is a promise, not a feature count: the report, the scenario file and the CLI stop
+changing under the people who build on them, and every published number can be
+reproduced from the repository.
+
+- [ ] **WB-33 — Report schema v1**: a published, versioned JSON Schema for the report, a
+  compatibility rule (additive within v1), and `compare` reading every v1 report.
+  <!-- wb: prio=high size=M labels=report,docs -->
+- [ ] **WB-34 — Stable CLI and scenario keys**: flags and scenario keys frozen, a
+  deprecation policy in CONTRIBUTING (warn for one minor, remove in the next major).
+  <!-- wb: prio=high size=S labels=docs,project -->
+- [ ] **WB-35 — Reproduce any published number**: `scripts/reproduce.sh <eval>` re-runs a
+  report from `evals/` with the server image pinned by digest and the same scenario,
+  clip and whipbench version, and prints the new report beside the old.
+  <!-- wb: prio=high size=M labels=benchmark,tests -->
+- [ ] **WB-36 — A results page**: the site renders `evals/` into one page — the method,
+  each server's numbers with its version and date, and what the numbers do not show —
+  generated, never edited by hand. <!-- wb: prio=med size=M labels=docs,report -->
+- [ ] **WB-37 — Supply chain**: signed release artifacts with verified attestations, an
+  SBOM per release, and `govulncheck` in CI, so a team that runs whipbench inside its
+  own CI can check what it is running. <!-- wb: prio=med size=M labels=release,tests -->
+
 ## v0.0.1 — The first binary <!-- ms: phase=shipped -->
 
 Not released: it exists so the clients, the report and the operating model can be
