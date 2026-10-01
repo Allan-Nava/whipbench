@@ -1,0 +1,663 @@
+{
+  "schema": "whipbench.report/v0",
+  "whipbenchVersion": "v0.0.0-20261001132140-1455cf3b72b9",
+  "command": "run",
+  "startedAt": "2026-10-01T13:21:50.090165Z",
+  "finishedAt": "2026-10-01T13:22:32.130493Z",
+  "server": {
+    "whipHost": "127.0.0.1:8889",
+    "whepHost": "127.0.0.1:8889"
+  },
+  "client": {
+    "os": "darwin",
+    "arch": "arm64",
+    "cpus": 10,
+    "go": "go1.27.1"
+  },
+  "scenario": {
+    "name": "mediamtx-local-10",
+    "whip": "127.0.0.1:8889",
+    "whep": "127.0.0.1:8889",
+    "codec": "vp8",
+    "viewers": 10,
+    "rampSeconds": 10,
+    "holdSeconds": 30,
+    "warmupSeconds": 2,
+    "joinTimeoutSeconds": 10,
+    "stallMs": 500,
+    "metrics": "127.0.0.1:9464",
+    "includeLoopback": true
+  },
+  "publisher": {
+    "codec": "vp8",
+    "stamped": false,
+    "connectMs": 14.894666,
+    "framesSent": 1261,
+    "packetsSent": 2890,
+    "bytesSent": 2928320,
+    "loops": 10,
+    "scheduleSlips": 0,
+    "sendingSeconds": 42.02013925
+  },
+  "aggregate": {
+    "valid": true,
+    "verdict": "valid: 10 of 10 viewers joined",
+    "viewers": 10,
+    "joined": 10,
+    "failed": 0,
+    "failedPercent": 0,
+    "droppedAfterJoin": 0,
+    "signallingMs": {
+      "n": 10,
+      "min": 4.769875,
+      "mean": 8.0310083,
+      "p50": 6.787083,
+      "p95": 18.015125,
+      "p99": 18.015125,
+      "max": 18.015125
+    },
+    "joinFirstRtpMs": {
+      "n": 10,
+      "min": 33.240125,
+      "mean": 138.1209083,
+      "p50": 67.417541,
+      "p95": 239.235792,
+      "p99": 239.235792,
+      "max": 239.235792
+    },
+    "joinFirstKeyframeMs": {
+      "n": 10,
+      "min": 999.943875,
+      "mean": 1004.8249082,
+      "p50": 1003.554916,
+      "p95": 1014.004166,
+      "p99": 1014.004166,
+      "max": 1014.004166
+    },
+    "lossPercent": {
+      "n": 10,
+      "min": 0,
+      "mean": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "jitterMs": {
+      "n": 10,
+      "min": 0.49435752500015895,
+      "mean": 0.6504042556459555,
+      "p50": 0.6599406209390488,
+      "p95": 0.7891726525114459,
+      "p99": 0.7891726525114459,
+      "max": 0.7891726525114459
+    },
+    "keyframeIntervalMeanS": {
+      "n": 10,
+      "min": 1,
+      "mean": 1,
+      "p50": 1,
+      "p95": 1,
+      "p99": 1,
+      "max": 1
+    },
+    "stalls": 0,
+    "packetsReceived": 24406,
+    "packetsLost": 0,
+    "lossPercentTotal": 0,
+    "latency": {
+      "available": false,
+      "reason": "not negotiated: the WHEP answer did not accept abs-capture-time",
+      "viewers": 0
+    }
+  },
+  "errors": {},
+  "timeline": [
+    {
+      "t": 1,
+      "active": 0,
+      "packets": 50
+    },
+    {
+      "t": 2,
+      "active": 1,
+      "packets": 121
+    },
+    {
+      "t": 3,
+      "active": 2,
+      "packets": 183
+    },
+    {
+      "t": 4,
+      "active": 3,
+      "packets": 259
+    },
+    {
+      "t": 5,
+      "active": 4,
+      "packets": 330
+    },
+    {
+      "t": 6,
+      "active": 5,
+      "packets": 418
+    },
+    {
+      "t": 7,
+      "active": 6,
+      "packets": 463
+    },
+    {
+      "t": 8,
+      "active": 7,
+      "packets": 517
+    },
+    {
+      "t": 9,
+      "active": 8,
+      "packets": 623
+    },
+    {
+      "t": 10,
+      "active": 9,
+      "packets": 702
+    },
+    {
+      "t": 11,
+      "active": 10,
+      "packets": 680
+    },
+    {
+      "t": 12,
+      "active": 10,
+      "packets": 670
+    },
+    {
+      "t": 13,
+      "active": 10,
+      "packets": 700
+    },
+    {
+      "t": 14,
+      "active": 10,
+      "packets": 710
+    },
+    {
+      "t": 15,
+      "active": 10,
+      "packets": 680
+    },
+    {
+      "t": 16,
+      "active": 10,
+      "packets": 670
+    },
+    {
+      "t": 17,
+      "active": 10,
+      "packets": 700
+    },
+    {
+      "t": 18,
+      "active": 10,
+      "packets": 710
+    },
+    {
+      "t": 19,
+      "active": 10,
+      "packets": 680
+    },
+    {
+      "t": 20,
+      "active": 10,
+      "packets": 670
+    },
+    {
+      "t": 21,
+      "active": 10,
+      "packets": 700
+    },
+    {
+      "t": 22,
+      "active": 10,
+      "packets": 710
+    },
+    {
+      "t": 23,
+      "active": 10,
+      "packets": 680
+    },
+    {
+      "t": 24,
+      "active": 10,
+      "packets": 670
+    },
+    {
+      "t": 25,
+      "active": 10,
+      "packets": 700
+    },
+    {
+      "t": 26,
+      "active": 10,
+      "packets": 710
+    },
+    {
+      "t": 27,
+      "active": 10,
+      "packets": 680
+    },
+    {
+      "t": 28,
+      "active": 10,
+      "packets": 670
+    },
+    {
+      "t": 29,
+      "active": 10,
+      "packets": 700
+    },
+    {
+      "t": 30,
+      "active": 10,
+      "packets": 710
+    },
+    {
+      "t": 31,
+      "active": 10,
+      "packets": 680
+    },
+    {
+      "t": 32,
+      "active": 10,
+      "packets": 670
+    },
+    {
+      "t": 33,
+      "active": 10,
+      "packets": 700
+    },
+    {
+      "t": 34,
+      "active": 10,
+      "packets": 710
+    },
+    {
+      "t": 35,
+      "active": 10,
+      "packets": 680
+    },
+    {
+      "t": 36,
+      "active": 10,
+      "packets": 670
+    },
+    {
+      "t": 37,
+      "active": 10,
+      "packets": 700
+    },
+    {
+      "t": 38,
+      "active": 10,
+      "packets": 710
+    },
+    {
+      "t": 39,
+      "active": 10,
+      "packets": 680
+    }
+  ],
+  "viewers": [
+    {
+      "id": 0,
+      "startOffsetMs": 0,
+      "joined": true,
+      "codec": "vp8",
+      "signallingMs": 6.988458,
+      "iceConnectedMs": 214.293833,
+      "firstRtpMs": 239.235792,
+      "firstKeyframeMs": 1001.021833,
+      "rtp": {
+        "received": 2747,
+        "expected": 2747,
+        "lost": 0,
+        "duplicates": 0,
+        "tooLate": 0,
+        "lossPercent": 0,
+        "jitterMs": 0.7132414082945175,
+        "receivingSeconds": 39.767097666,
+        "stalls": 0,
+        "stalledMs": 0,
+        "longestGapMs": 57.060458,
+        "keyframes": 40,
+        "keyframeIntervalMinS": 1,
+        "keyframeIntervalMeanS": 1,
+        "keyframeIntervalMaxS": 1
+      },
+      "latency": {
+        "available": false,
+        "reason": "not negotiated: the WHEP answer did not accept abs-capture-time",
+        "negotiated": false,
+        "stamped": 0,
+        "invalid": 0
+      }
+    },
+    {
+      "id": 1,
+      "startOffsetMs": 1000,
+      "joined": true,
+      "codec": "vp8",
+      "signallingMs": 6.230875,
+      "iceConnectedMs": 214.747084,
+      "firstRtpMs": 235.943209,
+      "firstKeyframeMs": 1003.554,
+      "rtp": {
+        "received": 2676,
+        "expected": 2676,
+        "lost": 0,
+        "duplicates": 0,
+        "tooLate": 0,
+        "lossPercent": 0,
+        "jitterMs": 0.5597711055211833,
+        "receivingSeconds": 38.770871541,
+        "stalls": 0,
+        "stalledMs": 0,
+        "longestGapMs": 57.133667,
+        "keyframes": 39,
+        "keyframeIntervalMinS": 1,
+        "keyframeIntervalMeanS": 1,
+        "keyframeIntervalMaxS": 1
+      },
+      "latency": {
+        "available": false,
+        "reason": "not negotiated: the WHEP answer did not accept abs-capture-time",
+        "negotiated": false,
+        "stamped": 0,
+        "invalid": 0
+      }
+    },
+    {
+      "id": 2,
+      "startOffsetMs": 2000,
+      "joined": true,
+      "codec": "vp8",
+      "signallingMs": 5.471458,
+      "iceConnectedMs": 212.476333,
+      "firstRtpMs": 236.283958,
+      "firstKeyframeMs": 1003.554916,
+      "rtp": {
+        "received": 2605,
+        "expected": 2605,
+        "lost": 0,
+        "duplicates": 0,
+        "tooLate": 0,
+        "lossPercent": 0,
+        "jitterMs": 0.7363977721944759,
+        "receivingSeconds": 37.77045,
+        "stalls": 0,
+        "stalledMs": 0,
+        "longestGapMs": 57.733042,
+        "keyframes": 38,
+        "keyframeIntervalMinS": 1,
+        "keyframeIntervalMeanS": 1,
+        "keyframeIntervalMaxS": 1
+      },
+      "latency": {
+        "available": false,
+        "reason": "not negotiated: the WHEP answer did not accept abs-capture-time",
+        "negotiated": false,
+        "stamped": 0,
+        "invalid": 0
+      }
+    },
+    {
+      "id": 3,
+      "startOffsetMs": 3000,
+      "joined": true,
+      "codec": "vp8",
+      "signallingMs": 18.015125,
+      "iceConnectedMs": 31.325083,
+      "firstRtpMs": 67.417541,
+      "firstKeyframeMs": 999.943875,
+      "rtp": {
+        "received": 2549,
+        "expected": 2549,
+        "lost": 0,
+        "duplicates": 0,
+        "tooLate": 0,
+        "lossPercent": 0,
+        "jitterMs": 0.49435752500015895,
+        "receivingSeconds": 36.937441834,
+        "stalls": 0,
+        "stalledMs": 0,
+        "longestGapMs": 57.632958,
+        "keyframes": 37,
+        "keyframeIntervalMinS": 1,
+        "keyframeIntervalMeanS": 1,
+        "keyframeIntervalMaxS": 1
+      },
+      "latency": {
+        "available": false,
+        "reason": "not negotiated: the WHEP answer did not accept abs-capture-time",
+        "negotiated": false,
+        "stamped": 0,
+        "invalid": 0
+      }
+    },
+    {
+      "id": 4,
+      "startOffsetMs": 4000,
+      "joined": true,
+      "codec": "vp8",
+      "signallingMs": 4.769875,
+      "iceConnectedMs": 216.219792,
+      "firstRtpMs": 235.231167,
+      "firstKeyframeMs": 1003.320375,
+      "rtp": {
+        "received": 2471,
+        "expected": 2471,
+        "lost": 0,
+        "duplicates": 0,
+        "tooLate": 0,
+        "lossPercent": 0,
+        "jitterMs": 0.6105193417562249,
+        "receivingSeconds": 35.770848875,
+        "stalls": 0,
+        "stalledMs": 0,
+        "longestGapMs": 56.847083,
+        "keyframes": 36,
+        "keyframeIntervalMinS": 1,
+        "keyframeIntervalMeanS": 1,
+        "keyframeIntervalMaxS": 1
+      },
+      "latency": {
+        "available": false,
+        "reason": "not negotiated: the WHEP answer did not accept abs-capture-time",
+        "negotiated": false,
+        "stamped": 0,
+        "invalid": 0
+      }
+    },
+    {
+      "id": 5,
+      "startOffsetMs": 5000,
+      "joined": true,
+      "codec": "vp8",
+      "signallingMs": 5.259916,
+      "iceConnectedMs": 16.200375,
+      "firstRtpMs": 33.240125,
+      "firstKeyframeMs": 1006.369333,
+      "rtp": {
+        "received": 2413,
+        "expected": 2413,
+        "lost": 0,
+        "duplicates": 0,
+        "tooLate": 0,
+        "lossPercent": 0,
+        "jitterMs": 0.6599406209390488,
+        "receivingSeconds": 34.971126458,
+        "stalls": 0,
+        "stalledMs": 0,
+        "longestGapMs": 57.293041,
+        "keyframes": 35,
+        "keyframeIntervalMinS": 1,
+        "keyframeIntervalMeanS": 1,
+        "keyframeIntervalMaxS": 1
+      },
+      "latency": {
+        "available": false,
+        "reason": "not negotiated: the WHEP answer did not accept abs-capture-time",
+        "negotiated": false,
+        "stamped": 0,
+        "invalid": 0
+      }
+    },
+    {
+      "id": 6,
+      "startOffsetMs": 6000,
+      "joined": true,
+      "codec": "vp8",
+      "signallingMs": 8.066084,
+      "iceConnectedMs": 18.5325,
+      "firstRtpMs": 33.727125,
+      "firstKeyframeMs": 1005.620084,
+      "rtp": {
+        "received": 2337,
+        "expected": 2337,
+        "lost": 0,
+        "duplicates": 0,
+        "tooLate": 0,
+        "lossPercent": 0,
+        "jitterMs": 0.7891726525114459,
+        "receivingSeconds": 33.974661417,
+        "stalls": 0,
+        "stalledMs": 0,
+        "longestGapMs": 57.763334,
+        "keyframes": 34,
+        "keyframeIntervalMinS": 1,
+        "keyframeIntervalMeanS": 1,
+        "keyframeIntervalMaxS": 1
+      },
+      "latency": {
+        "available": false,
+        "reason": "not negotiated: the WHEP answer did not accept abs-capture-time",
+        "negotiated": false,
+        "stamped": 0,
+        "invalid": 0
+      }
+    },
+    {
+      "id": 7,
+      "startOffsetMs": 7000,
+      "joined": true,
+      "codec": "vp8",
+      "signallingMs": 7.740792,
+      "iceConnectedMs": 214.807334,
+      "firstRtpMs": 231.825167,
+      "firstKeyframeMs": 1006.77425,
+      "rtp": {
+        "received": 2263,
+        "expected": 2263,
+        "lost": 0,
+        "duplicates": 0,
+        "tooLate": 0,
+        "lossPercent": 0,
+        "jitterMs": 0.6831998141933467,
+        "receivingSeconds": 32.774862292,
+        "stalls": 0,
+        "stalledMs": 0,
+        "longestGapMs": 56.80825,
+        "keyframes": 33,
+        "keyframeIntervalMinS": 1,
+        "keyframeIntervalMeanS": 1,
+        "keyframeIntervalMaxS": 1
+      },
+      "latency": {
+        "available": false,
+        "reason": "not negotiated: the WHEP answer did not accept abs-capture-time",
+        "negotiated": false,
+        "stamped": 0,
+        "invalid": 0
+      }
+    },
+    {
+      "id": 8,
+      "startOffsetMs": 8000,
+      "joined": true,
+      "codec": "vp8",
+      "signallingMs": 10.980417,
+      "iceConnectedMs": 20.857458,
+      "firstRtpMs": 33.906583,
+      "firstKeyframeMs": 1004.08625,
+      "rtp": {
+        "received": 2208,
+        "expected": 2208,
+        "lost": 0,
+        "duplicates": 0,
+        "tooLate": 0,
+        "lossPercent": 0,
+        "jitterMs": 0.7033501899227493,
+        "receivingSeconds": 31.973498375,
+        "stalls": 0,
+        "stalledMs": 0,
+        "longestGapMs": 57.2045,
+        "keyframes": 32,
+        "keyframeIntervalMinS": 1,
+        "keyframeIntervalMeanS": 1,
+        "keyframeIntervalMaxS": 1
+      },
+      "latency": {
+        "available": false,
+        "reason": "not negotiated: the WHEP answer did not accept abs-capture-time",
+        "negotiated": false,
+        "stamped": 0,
+        "invalid": 0
+      }
+    },
+    {
+      "id": 9,
+      "startOffsetMs": 9000,
+      "joined": true,
+      "codec": "vp8",
+      "signallingMs": 6.787083,
+      "iceConnectedMs": 13.444291,
+      "firstRtpMs": 34.398416,
+      "firstKeyframeMs": 1014.004166,
+      "rtp": {
+        "received": 2137,
+        "expected": 2137,
+        "lost": 0,
+        "duplicates": 0,
+        "tooLate": 0,
+        "lossPercent": 0,
+        "jitterMs": 0.5540921261264043,
+        "receivingSeconds": 30.972443709,
+        "stalls": 0,
+        "stalledMs": 0,
+        "longestGapMs": 57.095125,
+        "keyframes": 31,
+        "keyframeIntervalMinS": 1,
+        "keyframeIntervalMeanS": 1,
+        "keyframeIntervalMaxS": 1
+      },
+      "latency": {
+        "available": false,
+        "reason": "not negotiated: the WHEP answer did not accept abs-capture-time",
+        "negotiated": false,
+        "stamped": 0,
+        "invalid": 0
+      }
+    }
+  ],
+  "method": [
+    "Join time is measured from the WHEP POST (after host-candidate ICE gathering). firstRtp: the first RTP packet arrives. firstKeyframe: the last packet of the first keyframe received complete arrives — no decoder runs, so this is when a frame could first be decoded, not when one was. A viewer has joined when it reaches firstKeyframe within the join timeout.",
+    "Loss: expected = highest − first extended sequence number + 1 (RFC 3550 A.1), lost = expected − received, duplicates not counted. Measured on the stream the viewer receives, after NACK recovery; RTX is not negotiated, so a retransmission counts as received.",
+    "Jitter: RFC 3550 §6.4.1 interarrival jitter, J += (|D| − J)/16 per packet, in milliseconds.",
+    "Keyframe interval: spacing of keyframe starts in RTP time, i.e. the GOP the server delivers. The publisher's clip has a fixed 1 s GOP and cannot answer PLI, so a joining viewer waits for the next keyframe in the loop.",
+    "Latency: the publisher stamps each packet's wall-clock send time in the abs-capture-time RTP header extension; a viewer's sample is its arrival time minus the stamp. It is network plus server forwarding plus both clients' stacks, on one host or synchronised clocks — not glass-to-glass. When the server does not negotiate or forward the extension, latency is reported unavailable, never estimated.",
+    "Percentiles are nearest-rank. Join, loss and jitter summaries take one value per joined viewer; latency pools every valid sample of every viewer with latency, in a histogram with 1% buckets.",
+    "No-verdict rule: when more than 10% of the viewers failed to join, the aggregate is not valid and must not be quoted."
+  ]
+}
