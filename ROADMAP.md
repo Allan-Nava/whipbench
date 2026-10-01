@@ -4,7 +4,7 @@
 
 > This page is **generated** from [BACKLOG.md](BACKLOG.md), the single source of truth for planned work. Regenerate it with `node scripts/backlog.mjs roadmap` after editing the backlog — CI fails when the two disagree.
 
-**23 items · 6 shipped · 17 open · 4 milestones.**
+**37 items · 6 shipped · 31 open · 8 milestones.**
 
 ## At a glance
 
@@ -13,6 +13,10 @@
 | **v0.1.0 — The latency method, and a first report that means something** | now | `..........` 0% | 8 | 0 |
 | **v0.2.0 — Simulcast, layer switches and metrics** | next | `..........` 0% | 5 | 0 |
 | **v0.3.0 — The comparative report across four servers** | later | `..........` 0% | 4 | 0 |
+| **v0.4.0 — Load from many machines** | later | `..........` 0% | 3 | 0 |
+| **v0.5.0 — whipbench in CI** | later | `..........` 0% | 3 | 0 |
+| **v0.6.0 — What the viewer actually sees** | later | `..........` 0% | 3 | 0 |
+| **v1.0.0 — A report format others can depend on** | later | `..........` 0% | 5 | 0 |
 | **v0.0.1 — The first binary** | shipped | `##########` 100% | 0 | 6 |
 
 ## v0.1.0 — The latency method, and a first report that means something
@@ -40,6 +44,32 @@
 - [ ] **WB-21** — `whipbench compare` · high · M · report
 - [ ] **WB-22** — The write-up · med · M · docs
 - [ ] **WB-23** — A managed service on an own account · low · M · benchmark
+
+## v0.4.0 — Load from many machines
+
+- [ ] **WB-24** — Coordinated multi-host runs · high · L · client, report
+- [ ] **WB-25** — The client's own ceiling · high · M · measurement, report
+- [ ] **WB-26** — Container image and job specs · med · M · release, docs
+
+## v0.5.0 — whipbench in CI
+
+- [ ] **WB-27** — Assertions and their exit code · high · M · report, enhancement
+- [ ] **WB-28** — A GitHub Action · high · M · release, enhancement
+- [ ] **WB-29** — Against a baseline · med · M · report, measurement
+
+## v0.6.0 — What the viewer actually sees
+
+- [ ] **WB-30** — Freezes and frame drops · high · M · measurement
+- [ ] **WB-31** — Picture quality through a transcoding server · med · L · measurement, research
+- [ ] **WB-32** — Impairment profiles · high · M · client, measurement
+
+## v1.0.0 — A report format others can depend on
+
+- [ ] **WB-33** — Report schema v1 · high · M · report, docs
+- [ ] **WB-34** — Stable CLI and scenario keys · high · S · docs, project
+- [ ] **WB-35** — Reproduce any published number · high · M · benchmark, tests
+- [ ] **WB-36** — A results page · med · M · docs, report
+- [ ] **WB-37** — Supply chain · med · M · release, tests
 
 ## v0.0.1 — The first binary
 
