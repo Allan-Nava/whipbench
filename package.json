@@ -1,13 +1,63 @@
 {
   "name": "whipbench-tooling",
   "private": true,
-  "description": "Tooling only: the Pages site generator, the backlog scripts and the leak check. whipbench itself is a Go binary.",
+  "description": "Tooling only: the Pages site generator, the backlog config and the leak check. whipbench itself is a Go binary.",
   "type": "module",
   "scripts": {
-    "test": "node scripts/backlog_test.mjs && node scripts/leakcheck_test.mjs",
-    "backlog": "node scripts/backlog.mjs lint && node scripts/backlog.mjs check",
+    "test": "node scripts/leakcheck_test.mjs",
+    "backlog": "npx --yes backlogsync@0.1.0 check",
     "leakcheck": "node scripts/leakcheck.mjs",
-    "build:site": "node site/build.mjs"
+    "build:site": "node site/build.mjs",
+    "roadmap": "npx --yes backlogsync@0.1.0 roadmap"
   },
-  "devDependencies": { "marked": "^17.0.0" }
+  "backlogsync": {
+    "prefix": "WB",
+    "name": "whipbench",
+    "regenerate": "npm run roadmap",
+    "labels": {
+      "client": [
+        "b7552f",
+        "The WHIP publisher and the WHEP viewers"
+      ],
+      "measurement": [
+        "1d76db",
+        "What a number means and how it is computed"
+      ],
+      "benchmark": [
+        "0e8a16",
+        "Live runs against real servers, and evals/"
+      ],
+      "report": [
+        "c5def5",
+        "The JSON and Markdown report, metrics"
+      ],
+      "research": [
+        "d93f0b",
+        "Open questions, decided in a QRSPI Questions phase"
+      ],
+      "release": [
+        "5319e7",
+        "Publishing and versioning"
+      ],
+      "docs": [
+        "0075ca",
+        "README, CONTRIBUTING, site"
+      ],
+      "project": [
+        "6a737d",
+        "Backlog, roadmap, repo hygiene"
+      ],
+      "tests": [
+        "d4c5f9",
+        "Test coverage and test tooling"
+      ],
+      "enhancement": [
+        "a2eeef",
+        "New capability"
+      ]
+    }
+  },
+  "devDependencies": {
+    "marked": "^17.0.0"
+  }
 }

@@ -32,7 +32,7 @@ testdata/                clip-vp8.ivf, clip-h264.h264 (made by scripts/make-clip
 examples/                scenario files for a local MediaMTX
 evals/                   dated live runs: a Markdown summary plus the raw reports
 thoughts/                QRSPI artifacts (WB-1 starts with an empty Questions file)
-scripts/                 make-clips.sh, check-repo.sh, backlog.mjs, leakcheck.mjs (+ tests)
+scripts/                 make-clips.sh, check-repo.sh, leakcheck.mjs (+ test)
 site/build.mjs           the Pages site, generated from README.md
 ```
 
@@ -111,7 +111,7 @@ tool-attribution trailers or footers in commits, pull requests or files.
 ## Conventions
 
 - BACKLOG.md first: every idea is a `WB-n` item; shipped items say `ver=`. Regenerate
-  ROADMAP.md; `backlog.mjs check` fails when it is stale.
+  ROADMAP.md with `npm run roadmap`; `npm run backlog` (backlogsync) fails when it is stale.
 - CHANGELOG under `[Unreleased]` in the same pull request as the change.
 - Prose in English, British-leaning spelling, em-dashes, no marketing filler, no
   decorative emoji.

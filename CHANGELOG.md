@@ -5,6 +5,12 @@ versions follow [SemVer](https://semver.org/). Items reference their `WB-n` back
 
 ## [Unreleased]
 
+### Changed
+- The backlog check, the roadmap, the issue sync and the release-drift check are
+  [backlogsync](https://github.com/Allan-Nava/backlogsync) 0.1.0, configured in
+  `package.json#backlogsync`; `scripts/backlog.mjs`, its test and fixtures are gone, and
+  `npm run roadmap` regenerates `ROADMAP.md` (WB-7).
+
 ### Security
 - golang.org/x/crypto 0.48.0 → 0.52.0 and x/net → 0.55.0 (x/sys 0.45.0), after
   Dependabot security alerts on the first push.

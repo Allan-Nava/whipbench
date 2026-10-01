@@ -39,7 +39,10 @@ hostname — plus the raw reports beside it.
 
 `BACKLOG.md` is the single source of truth; `ROADMAP.md` is generated from it and the
 GitHub issues are synced from it one way on every push to `main` that touches the file.
-Items carry a stable `WB-n` id and `<!-- wb: prio= size= labels= [ver=] -->`.
+Items carry a stable `WB-n` id and `<!-- wb: prio= size= labels= [ver=] -->`. The check,
+the roadmap and the sync are [backlogsync](https://github.com/Allan-Nava/backlogsync),
+configured in `package.json#backlogsync` and pinned to its release in `package.json`
+(`backlogsync@0.1.0`) and the workflows (`@backlogsync--v0.1.0`); bump them together.
 
 ## Pull requests
 
