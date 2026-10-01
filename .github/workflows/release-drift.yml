@@ -23,37 +23,11 @@ permissions:
   contents: read
 
 jobs:
+  # The check lives in backlogsync, shared by every repository that releases by tag
+  # (WB-7): VERSION against a v<version> tag, and a CHANGELOG section that opens with
+  # "Not released" passes with a notice.
   drift:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-
-      - name: Compare VERSION against the tags
-        run: |
-          VERSION="$(tr -d ' \n' < VERSION)"
-          TAG="v$VERSION"
-          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
-            echo "$TAG exists — nothing to report"
-            exit 0
-          fi
-          # The CHANGELOG says this version is deliberately untagged.
-          FIRST="$(awk -v v="$VERSION" 'index($0, "## [" v "]") == 1 {f=1; next} f && NF {print; exit}' CHANGELOG.md)"
-          case "$FIRST" in
-            "Not released"*)
-              echo "::notice::$VERSION has no $TAG and CHANGELOG.md says it is not released — nothing to report"
-              exit 0 ;;
-          esac
-          # The commit that last touched the version line, and how long ago.
-          SET_AT="$(git log -1 --format=%ct -- VERSION)"
-          AGE=$(( $(date +%s) - SET_AT ))
-          GRACE=$(( 2 * 3600 ))
-          if [ "$AGE" -lt "$GRACE" ]; then
-            echo "::notice::$VERSION is on main without $TAG for $((AGE / 60)) min — inside the grace window"
-            exit 0
-          fi
-          echo "::error::$VERSION has been on main for $((AGE / 3600)) h with no $TAG — nothing was released. From a checkout of main: git tag $TAG && git push origin $TAG"
-          exit 1
+    uses: Allan-Nava/backlogsync/.github/workflows/release-drift.yml@backlogsync--v0.1.0
+    with:
+      version-file: VERSION
+      tag-prefix: v

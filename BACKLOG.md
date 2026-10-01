@@ -4,7 +4,7 @@ Single source of truth for what is planned. Items keep a stable `WB-n` id so com
 the CHANGELOG, the `thoughts/` artifacts and the issues can reference them.
 
 [ROADMAP.md](ROADMAP.md) is a **generated** view of this file — run
-`node scripts/backlog.mjs roadmap` after touching it, or CI fails. The GitHub issues are
+`npm run roadmap` (backlogsync) after touching it, or CI fails. The GitHub issues are
 synced from it one way on every push to `main` that changes this file.
 
 ## How to write an item
@@ -62,10 +62,13 @@ publishes that report. **No v0.1.0 before WB-1 has a decided method and WB-5 is 
   and within its terms, or with written permission — and what a run against a managed
   service must record (plan, region, the permission). No managed-service numbers are
   published before this exists. <!-- wb: prio=high size=S labels=docs,research -->
-- [ ] **WB-7 — Move the backlog tooling to backlogsync**: `scripts/backlog.mjs` and
+- [x] **WB-7 — Move the backlog tooling to backlogsync**: `scripts/backlog.mjs` and
   `.github/workflows/backlog-issues.yml` are copied from a sibling repository for now.
   Replace both with `Allan-Nava/backlogsync` once that tool reaches 0.1.0, keeping the
-  `WB-n` ids and the issue titles unchanged. <!-- wb: prio=low size=S labels=project -->
+  `WB-n` ids and the issue titles unchanged. Done 2026-10-01: the CI `backlog`
+  job, `backlog-issues.yml` and `release-drift.yml` on backlogsync `@backlogsync--v0.1.0`,
+  `npm run backlog` / `npm run roadmap` on `npx backlogsync@0.1.0`; the old script, its test
+  and fixtures removed. <!-- wb: prio=low size=S labels=project ver=main -->
 - [ ] **WB-8 — Ramp phase against the GOP**: the ramp is deterministic, so when its step
   is a multiple of the 1 s GOP every viewer arrives at the same point of it and join
   times cluster (the 10-viewer MediaMTX run: p50 1003 ms, min 1001 ms). Add an optional
