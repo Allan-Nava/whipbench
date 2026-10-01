@@ -5,6 +5,14 @@ versions follow [SemVer](https://semver.org/). Items reference their `WB-n` back
 
 ## [Unreleased]
 
+### Security
+- golang.org/x/crypto 0.48.0 → 0.52.0 (with x/net 0.54.0, x/sys 0.45.0), after a
+  Dependabot security alert on the first push.
+
+### Fixed
+- CI lint builds golangci-lint with the module's Go 1.27 instead of using the release
+  binary, which is built with Go 1.26 and refuses the module.
+
 ## [0.0.1] — 2026-10-01
 
 Not released: the first binary, published as source so the clients, the report and the
