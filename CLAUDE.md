@@ -71,6 +71,10 @@ Do not weaken these; they are what makes a number from whipbench worth quoting.
 - **MediaMTX v1.21.1** negotiates abs-capture-time on neither its WHIP nor its WHEP
   answer; in Docker on macOS it needs `MTX_WEBRTCADDITIONALHOSTS=127.0.0.1` and the UDP
   port published for a client on the host to connect (2026-10-01, `evals/`).
+- **golangci-lint v2.12.2 on Go 1.27**: the release binary is built with Go 1.26 and
+  refuses the module; built with `goinstall`, its staticcheck/unused IR builder
+  (honnef.co/go/tools v0.7.0) panics on Go 1.27's `internal/poll`, so CI runs it with
+  those two disabled (2026-10-01). Lift that when a release handles 1.27.
 - **RFC 3550**: extended sequence numbers and loss in A.1/A.3, interarrival jitter in
   §6.4.1/A.8. **RFC 9725**: POST an SDP offer, 201 with the answer and `Location`,
   DELETE the resource to end the session.

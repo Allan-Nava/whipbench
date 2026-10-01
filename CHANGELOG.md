@@ -6,12 +6,14 @@ versions follow [SemVer](https://semver.org/). Items reference their `WB-n` back
 ## [Unreleased]
 
 ### Security
-- golang.org/x/crypto 0.48.0 → 0.52.0 (with x/net 0.54.0, x/sys 0.45.0), after a
-  Dependabot security alert on the first push.
+- golang.org/x/crypto 0.48.0 → 0.52.0 and x/net → 0.55.0 (x/sys 0.45.0), after
+  Dependabot security alerts on the first push.
 
 ### Fixed
 - CI lint builds golangci-lint with the module's Go 1.27 instead of using the release
-  binary, which is built with Go 1.26 and refuses the module.
+  binary, which is built with Go 1.26 and refuses the module; staticcheck and unused
+  are disabled there until their IR builder handles Go 1.27's standard library.
+- The leak check allows support@github.com, which Dependabot's commits carry.
 
 ## [0.0.1] — 2026-10-01
 

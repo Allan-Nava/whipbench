@@ -34,7 +34,8 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
-const ALLOWED_EMAILS = new Set(['allannava95@gmail.com', 'noreply@github.com'])
+// GitHub's own addresses appear in commits it makes (web merges, Dependabot).
+const ALLOWED_EMAILS = new Set(['allannava95@gmail.com', 'noreply@github.com', 'support@github.com'])
 const ALLOWED_EMAIL_DOMAINS = [/\.?users\.noreply\.github\.com$/, /(^|\.)example\.(com|org|net)$/, /\.test$/, /\.example$/, /\.invalid$/]
 
 const j = (...p) => p.join('')

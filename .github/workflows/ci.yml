@@ -48,10 +48,14 @@ jobs:
           go-version-file: go.mod
       # goinstall, not the release binary: v2.12.2's binary is built with Go 1.26 and
       # refuses a module that targets 1.27; built here it uses the go.mod toolchain.
+      # staticcheck and unused are off in CI until their IR builder (honnef.co/go/tools
+      # v0.7.0) handles Go 1.27's standard library — it panics in internal/poll,
+      # 2026-10-01. Run them locally with a toolchain that does; go vet covers the rest.
       - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.12.2
           install-mode: goinstall
+          args: --disable=staticcheck --disable=unused
 
   # Nothing private in the tracked files or anywhere in the history: home paths, file
   # URLs, e-mail addresses, private IPs, credential-shaped strings, attribution

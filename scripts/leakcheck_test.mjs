@@ -26,6 +26,7 @@ for (const [line, want] of bad) assert.ok(rules(line).includes(want), `${want} n
 const good = [
   'author Allan Nava <allannava95@gmail.com>',
   'committer GitHub <noreply@github.com>',
+  'Signed-off-by: dependabot[bot] <support@github.com>',
   '12345+someone@users.noreply.github.com',
   'POST to https://edge.example.test/whep',
   'listen 127.0.0.1:8889 and [::1]:8889',
