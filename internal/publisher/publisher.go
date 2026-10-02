@@ -5,7 +5,7 @@
 // The stamp goes in the abs-capture-time header extension when the server accepts
 // it in its SDP answer. With a pre-encoded clip the moment of "capture" is the
 // moment of sending, so the field carries the send time; a viewer subtracts it from
-// its arrival time to get the one-way delay through the network and the server.
+// its arrival time to get the packet transit through the network and the server.
 package publisher
 
 import (

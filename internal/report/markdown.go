@@ -54,17 +54,17 @@ func (r *Report) Markdown() string {
 		row("join: first keyframe", a.FirstKeyframeMs, " ms")
 		row("join: first RTP packet", a.FirstRTPMs, " ms")
 		row("signalling (POST → answer)", a.SignallingMs, " ms")
-		if a.Latency.Available && a.Latency.Ms != nil {
-			row("one-way delay (stamped packets)", *a.Latency.Ms, " ms")
+		if a.PacketTransit.Available && a.PacketTransit.Ms != nil {
+			row("packet transit (stamped packets)", *a.PacketTransit.Ms, " ms")
 		}
 		row("loss per viewer", a.LossPercent, "%")
 		row("jitter per viewer", a.JitterMs, " ms")
 		row("keyframe interval per viewer", a.KeyframeS, " s")
 		w("\n")
-		if !a.Latency.Available {
-			w("**Latency: unavailable** — %s.\n\n", esc(a.Latency.Reason))
-		} else if a.Latency.Reason != "" {
-			w("Latency %s.\n\n", esc(a.Latency.Reason))
+		if !a.PacketTransit.Available {
+			w("**Packet transit: unavailable** — %s.\n\n", esc(a.PacketTransit.Reason))
+		} else if a.PacketTransit.Reason != "" {
+			w("Packet transit %s.\n\n", esc(a.PacketTransit.Reason))
 		}
 		w("Packets: %d received, %d lost (%.3f%% of expected), %d stalls across all viewers.\n\n",
 			a.PacketsReceived, a.PacketsLost, a.LossTotal, a.Stalls)
@@ -98,16 +98,16 @@ func (r *Report) Markdown() string {
 	}
 
 	w("## Viewers\n\n")
-	w("| id | start | joined | first RTP | first keyframe | received | lost | loss | jitter | keyframe | stalls | latency p50 | latency p99 | error |\n")
+	w("| id | start | joined | first RTP | first keyframe | received | lost | loss | jitter | keyframe | stalls | transit p50 | transit p99 | error |\n")
 	w("|---:|---:|:---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|\n")
 	for _, v := range r.Viewers {
 		joined := "no"
 		if v.Joined {
 			joined = "yes"
 		}
-		lat50, lat99 := "n/a", "n/a"
-		if v.Latency.Available && v.Latency.Ms != nil {
-			lat50, lat99 = fmt.Sprintf("%.1f ms", v.Latency.Ms.P50), fmt.Sprintf("%.1f ms", v.Latency.Ms.P99)
+		pt50, pt99 := "n/a", "n/a"
+		if v.PacketTransit.Available && v.PacketTransit.Ms != nil {
+			pt50, pt99 = fmt.Sprintf("%.1f ms", v.PacketTransit.Ms.P50), fmt.Sprintf("%.1f ms", v.PacketTransit.Ms.P99)
 		}
 		kf := "—"
 		if v.RTP.Keyframes > 1 {
@@ -115,7 +115,7 @@ func (r *Report) Markdown() string {
 		}
 		w("| %d | %.0f ms | %s | %s | %s | %d | %d | %.2f%% | %.2f ms | %s | %d | %s | %s | %s |\n",
 			v.ID, v.StartOffsetMs, joined, msOrDash(v.FirstRTPMs), msOrDash(v.FirstKeyframeMs),
-			v.RTP.Received, v.RTP.Lost, v.RTP.LossPercent, v.RTP.JitterMs, kf, v.RTP.Stalls, lat50, lat99, esc(v.ErrorKind))
+			v.RTP.Received, v.RTP.Lost, v.RTP.LossPercent, v.RTP.JitterMs, kf, v.RTP.Stalls, pt50, pt99, esc(v.ErrorKind))
 	}
 	w("\n## Method\n\n")
 	for _, m := range r.Method {

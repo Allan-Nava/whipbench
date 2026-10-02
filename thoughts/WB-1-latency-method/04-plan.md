@@ -312,8 +312,8 @@ grep -q 'packet transit: unavailable' README.md && grep -q 'not glass-to-glass' 
 grep -q 'whipbench_packet_transit_seconds' internal/metrics/metrics.go; echo "exit $?"
 grep -q 'packetTransit' internal/viewer/viewer.go; echo "exit $?"
 sed -n '/^## \[Unreleased\]/,/^## \[/p' CHANGELOG.md | grep -w 'WB-1' | grep -qi 'packet transit'; echo "exit $?"
-! git grep -ni latency -- '*.go' scripts/check-repo.sh AGENTS.md; echo "exit $?"
-! git grep -n -E 'one-way delay|one_way_delay|MaxPlausibleDelay|DelayBucketsMs|\.Delay\(|finishLatency' -- '*.go'; echo "exit $?"
+! git grep -ni latency -- '*.go' scripts/check-repo.sh AGENTS.md ':!internal/report/report_test.go'; echo "exit $?"
+! git grep -n -E 'one-way delay|one_way_delay|MaxPlausibleDelay|DelayBucketsMs|\.Delay\(|finishLatency' -- '*.go' ':!internal/report/report_test.go' ':!internal/metrics/metrics_test.go'; echo "exit $?"
 ! grep -n -E 'latency or why not|\*\*Latency is' CLAUDE.md; echo "exit $?"
 ```
 
@@ -333,7 +333,7 @@ Every line prints `exit 0`. (`golangci-lint` is the local binary; CI builds its 
 Worktree `wb-1/s2-s3`, in parallel with S1. One commit: `WB-1 S2: WB-38 to WB-41, the
 follow-up items`. Do not touch `99-progress.md`; report to the S1 owner.
 
-**Ids first.** Run `grep -oE '\*\*WB-[0-9]+ — ' BACKLOG.md | grep -oE '[0-9]+' | sort -n | tail -1`.
+**Ids first.** Run `grep -oE '\*\*WB-[0-9]+ — ' BACKLOG.md | grep -oE '[0-9]+' | grep -v '^99$' | sort -n | tail -1`.
 It must print `37`. If it prints a higher number N, the four items take N+1…N+4 in the
 order below, and every later `WB-38`…`WB-41` in this plan (S3, S4, and S1's CLAUDE.md and
 CHANGELOG text) shifts by the same amount — record that as a Deviation in `99-progress.md`.

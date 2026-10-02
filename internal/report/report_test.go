@@ -85,18 +85,37 @@ func TestAggregatesAreOverJoinedViewers(t *testing.T) {
 	}
 }
 
-func TestLatencyUnavailableIsNeverANumber(t *testing.T) {
+func TestPacketTransitUnavailableIsNeverANumber(t *testing.T) {
 	vs := viewers(3, 0)
 	for i := range vs {
-		vs[i].Latency = viewer.Latency{Negotiated: false, Reason: "not negotiated: the WHEP answer did not accept abs-capture-time"}
+		vs[i].PacketTransit = viewer.PacketTransit{Negotiated: false, Reason: "not negotiated: the WHEP answer did not accept abs-capture-time"}
 	}
 	r := build(sc(3), vs)
-	if r.Aggregate.Latency.Available || r.Aggregate.Latency.Ms != nil {
-		t.Fatalf("latency %+v", r.Aggregate.Latency)
+	if r.Aggregate.PacketTransit.Available || r.Aggregate.PacketTransit.Ms != nil {
+		t.Fatalf("packet transit %+v", r.Aggregate.PacketTransit)
 	}
 	md := r.Markdown()
-	if !strings.Contains(md, "**Latency: unavailable** — not negotiated") || strings.Contains(md, "one-way delay (stamped") {
+	if !strings.Contains(md, "**Packet transit: unavailable** — not negotiated") || strings.Contains(md, "packet transit (stamped") {
 		t.Fatalf("markdown:\n%s", md)
+	}
+}
+
+// The 0.0.1 figure is packetTransit in the JSON and in the Method lines; no key, no definition is called latency (WB-1, D1).
+func TestPacketTransitKeys(t *testing.T) {
+	r := build(sc(3), viewers(3, 0))
+	b, err := r.JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := string(b)
+	if n := strings.Count(js, "\"packetTransit\": {"); n != 4 {
+		t.Errorf("want 4 packetTransit objects (aggregate + 3 viewers), got %d:\n%s", n, js)
+	}
+	if strings.Contains(strings.ToLower(js), "latency") {
+		t.Errorf("the 0.0.1 key or wording is back:\n%s", js)
+	}
+	if strings.Contains(js, "one-way delay") {
+		t.Errorf("that name is reserved for the per-frame figure of WB-38:\n%s", js)
 	}
 }
 

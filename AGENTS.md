@@ -2,7 +2,7 @@
 
 The guidance for coding agents in this repository lives in [CLAUDE.md](CLAUDE.md): what
 whipbench is, the six rules the code encodes (definitions first, never a fake number,
-the no-verdict rule, hosts only, latency is not glass-to-glass, pure Go), the dated
+the no-verdict rule, hosts only, delay is not glass-to-glass, pure Go), the dated
 facts the code depends on, how to verify a change, and the publishing hygiene. Read it
 before editing.
 

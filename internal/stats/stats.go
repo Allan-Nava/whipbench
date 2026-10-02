@@ -1,6 +1,6 @@
 // Package stats holds the two summaries whipbench reports: exact percentiles over a
 // small set of values (one join time per viewer), and a mergeable log-bucketed
-// histogram for the per-packet one-way delays, which are too many to keep.
+// histogram for the per-packet transit times, which are too many to keep.
 package stats
 
 import (

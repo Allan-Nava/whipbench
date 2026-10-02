@@ -19,7 +19,7 @@ internal/clip/           IVF and Annex-B parsing into loopable frames, RTP times
 internal/rtc/            the one pion API every peer uses: codecs, abs-capture-time, ICE options
 internal/whip/           the HTTP half of WHIP/WHEP; errors that never carry a URL
 internal/publisher/      WHIP publisher: paced loop, send-time stamp per packet
-internal/viewer/         WHEP viewer: join times, stats, latency or why not
+internal/viewer/         WHEP viewer: join times, stats, packet transit or why not
 internal/rtpstats/       loss, jitter, keyframes, stalls — pure arithmetic (RFC 3550)
 internal/stats/          nearest-rank summaries and the mergeable delay histogram
 internal/scenario/       the scenario file, defaults, validation, the ramp
@@ -51,8 +51,9 @@ Do not weaken these; they are what makes a number from whipbench worth quoting.
 4. **Hosts only.** No path, query string, user info, `Location` or token reaches a
    report, an error message or the console. `whip.Host` and `whip.Scrub` are the only
    ways out; the tests assert it on real round trips.
-5. **Latency is network plus server, not glass-to-glass**, and it needs one clock or
-   synchronised clocks. Glass-to-glass is WB-1/WB-2, not implemented.
+5. **Packet transit and one-way delay are network plus server, not glass-to-glass**,
+   and they need one clock or synchronised clocks. No metric is called "latency" (WB-1);
+   one-way delay is WB-38 and capture-to-decode WB-2, neither implemented yet.
 6. **Pure Go, no cgo.** A decoder in the viewer (WB-2) has to respect it or argue
    against it in the Design phase.
 

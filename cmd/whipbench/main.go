@@ -268,10 +268,10 @@ func execute(ctx context.Context, command string, sc scenario.Scenario, c *clip.
 	fmt.Fprintf(stdout, "%s\n", a.Verdict)
 	if a.Valid {
 		fmt.Fprintf(stdout, "join (first keyframe) p50 %.0f ms, p95 %.0f ms; loss %.3f%%; ", a.FirstKeyframeMs.P50, a.FirstKeyframeMs.P95, a.LossTotal)
-		if a.Latency.Available && a.Latency.Ms != nil {
-			fmt.Fprintf(stdout, "one-way delay p50 %.1f ms, p99 %.1f ms\n", a.Latency.Ms.P50, a.Latency.Ms.P99)
+		if a.PacketTransit.Available && a.PacketTransit.Ms != nil {
+			fmt.Fprintf(stdout, "packet transit p50 %.1f ms, p99 %.1f ms\n", a.PacketTransit.Ms.P50, a.PacketTransit.Ms.P99)
 		} else {
-			fmt.Fprintf(stdout, "latency unavailable: %s\n", a.Latency.Reason)
+			fmt.Fprintf(stdout, "packet transit unavailable: %s\n", a.PacketTransit.Reason)
 		}
 	}
 	for _, p := range paths {

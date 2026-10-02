@@ -1,6 +1,6 @@
 // Package viewer is one WHEP viewer: it negotiates a receive-only video session,
 // reads every RTP packet, and reports join time, loss, jitter, keyframe spacing,
-// stalls and — when the stamp survives the server — one-way delay.
+// stalls and — when the stamp survives the server — packet transit.
 //
 // Join time is measured from the moment the WHEP POST is sent (after ICE
 // gathering, which for host candidates takes milliseconds and is not counted) to:
@@ -29,13 +29,13 @@ import (
 	"github.com/pion/webrtc/v4"
 )
 
-// MaxPlausibleDelay bounds a one-way delay sample. Anything above it, or below
+// MaxPlausibleTransit bounds a packet transit sample. Anything above it, or below
 // zero, says the clocks disagree or the stamp was rewritten, not that the network
 // took that long.
-const MaxPlausibleDelay = 60 * time.Second
+const MaxPlausibleTransit = 60 * time.Second
 
 // MaxInvalidStampShare is the share of stamped packets that may give an
-// implausible delay before the viewer reports latency as unavailable.
+// implausible transit before the viewer reports packet transit as unavailable.
 const MaxInvalidStampShare = 0.01
 
 // Config is one viewer.
@@ -51,15 +51,15 @@ type Config struct {
 	Live  *metrics.Live
 }
 
-// Latency is the one-way delay a viewer measured, or why it could not.
-type Latency struct {
+// PacketTransit is a viewer's per-packet arrival minus send stamp, or why it could not be measured.
+type PacketTransit struct {
 	Available bool `json:"available"`
-	// Reason says why latency is unavailable; empty when it is available.
+	// Reason says why packet transit is unavailable; empty when it is available.
 	Reason string `json:"reason,omitempty"`
 	// Negotiated: the server's WHEP answer accepted abs-capture-time.
 	Negotiated bool `json:"negotiated"`
 	// Stamped is the number of packets that carried a stamp; Invalid those whose
-	// delay was negative or above MaxPlausibleDelay (excluded from the summary).
+	// transit was negative or above MaxPlausibleTransit (excluded from the summary).
 	Stamped uint64         `json:"stamped"`
 	Invalid uint64         `json:"invalid"`
 	Ms      *stats.Summary `json:"ms,omitempty"`
@@ -67,9 +67,9 @@ type Latency struct {
 	hist *stats.Histogram
 }
 
-// Histogram is the viewer's delay histogram, for merging into a run aggregate;
-// nil when latency is unavailable.
-func (l *Latency) Histogram() *stats.Histogram {
+// Histogram is the viewer's packet transit histogram, for merging into a run aggregate;
+// nil when packet transit is unavailable.
+func (l *PacketTransit) Histogram() *stats.Histogram {
 	if !l.Available {
 		return nil
 	}
@@ -88,8 +88,8 @@ type Result struct {
 	FirstRTPMs      *float64 `json:"firstRtpMs,omitempty"`
 	FirstKeyframeMs *float64 `json:"firstKeyframeMs,omitempty"`
 
-	RTP     rtpstats.Summary `json:"rtp"`
-	Latency Latency          `json:"latency"`
+	RTP           rtpstats.Summary `json:"rtp"`
+	PacketTransit PacketTransit    `json:"packetTransit"`
 
 	// DroppedAfterJoin: the connection failed after the viewer had joined.
 	DroppedAfterJoin bool   `json:"droppedAfterJoin,omitempty"`
@@ -112,7 +112,7 @@ type progress struct {
 	failed    chan struct{}
 	readDone  chan struct{}
 	stream    *rtpstats.Stream
-	latency   Latency
+	transit   PacketTransit
 	extID     uint8
 	joinedSet bool
 }
@@ -190,7 +190,7 @@ func Run(ctx context.Context, id int, cfg Config) (res Result) {
 		if pr.stream != nil {
 			res.RTP = pr.stream.Summary()
 		}
-		res.Latency = finishLatency(pr.latency)
+		res.PacketTransit = finishPacketTransit(pr.transit)
 	}()
 
 	if _, err := pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo,
@@ -219,8 +219,8 @@ func Run(ctx context.Context, id int, cfg Config) (res Result) {
 		pr.codec = rtc.CodecName(track.Codec().MimeType)
 		pr.stream = rtpstats.New(int(track.Codec().ClockRate), cfg.Stall)
 		pr.extID = rtc.ExtensionID(receiver.GetParameters().HeaderExtensions, rtc.AbsCaptureTimeURI)
-		pr.latency.Negotiated = pr.extID != 0
-		pr.latency.hist = stats.NewHistogram()
+		pr.transit.Negotiated = pr.extID != 0
+		pr.transit.hist = stats.NewHistogram()
 		pr.mu.Unlock()
 		go drainRTCP(receiver)
 		defer close(pr.readDone)
@@ -324,14 +324,14 @@ func readLoop(track *webrtc.TrackRemote, pr *progress, live *metrics.Live) {
 		}
 		if extID != 0 {
 			if raw := pkt.GetExtension(extID); len(raw) >= 8 && ac.Unmarshal(raw) == nil {
-				pr.latency.Stamped++
+				pr.transit.Stamped++
 				d := now.Sub(ac.CaptureTime())
-				if d < 0 || d > MaxPlausibleDelay {
-					pr.latency.Invalid++
+				if d < 0 || d > MaxPlausibleTransit {
+					pr.transit.Invalid++
 				} else {
 					v := float64(d) / float64(time.Millisecond)
-					pr.latency.hist.Add(v)
-					live.Delay(v)
+					pr.transit.hist.Add(v)
+					live.PacketTransit(v)
 				}
 			}
 		}
@@ -339,7 +339,7 @@ func readLoop(track *webrtc.TrackRemote, pr *progress, live *metrics.Live) {
 	}
 }
 
-func finishLatency(l Latency) Latency {
+func finishPacketTransit(l PacketTransit) PacketTransit {
 	switch {
 	case !l.Negotiated:
 		l.Reason = "not negotiated: the WHEP answer did not accept abs-capture-time"

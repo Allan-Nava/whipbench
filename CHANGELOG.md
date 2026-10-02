@@ -6,6 +6,13 @@ versions follow [SemVer](https://semver.org/). Items reference their `WB-n` back
 ## [Unreleased]
 
 ### Changed
+- The 0.0.1 delay figure is renamed **packet transit** (WB-1) — per packet, arrival
+  minus the abs-capture-time send stamp — so no metric is called "latency" and "one-way
+  delay" is left for the per-frame figure of WB-38. Breaking: the report key `latency`
+  is now `packetTransit` (the schema stays `whipbench.report/v0`, since no key changed
+  meaning), the Prometheus histogram `whipbench_one_way_delay_seconds` is now
+  `whipbench_packet_transit_seconds`, and the Markdown and stdout say "packet transit".
+  A 0.0.1 parser or dashboard meets a missing key, not an error; there is no alias.
 - The backlog check, the roadmap, the issue sync and the release-drift check are
   [backlogsync](https://github.com/Allan-Nava/backlogsync) 0.1.0, configured in
   `package.json#backlogsync`; `scripts/backlog.mjs`, its test and fixtures are gone, and
