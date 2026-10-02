@@ -188,5 +188,6 @@ section and cites S3's rewritten items); S5 waits for S4.
 - [x] Every step has a verification command
 - [x] Every step leaves the repo working
 - [x] Dependencies and parallelism mapped
+- [x] Approved (2026-10-02, Allan Nava, in chat: "ok approvo") — with the three open questions decided: WB-38 goes in v0.1.0 (it unblocks WB-5) and WB-39..41 in v0.2.0; the v0.1.0 milestone title and the README heading "Latency, and its limits" stay, since both name the subject rather than a metric
 
 > Next phase: **Plan**. It receives: this file + `02-design.md`.
