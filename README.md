@@ -4,7 +4,7 @@
 
 whipbench publishes a synthetic clip over **WHIP** (RFC 9725), plays it back with any number of **WHEP** viewers, and writes a report of what an operator cares about — join time, packet transit, packet loss, jitter, keyframe interval and run stability — with the same definitions whichever server sits in the middle. The clients are native Go on [pion/webrtc](https://github.com/pion/webrtc) v4, with no browser, so one machine can drive many viewers, and the report is meant to be laid next to another server's.
 
-**Status: 0.0.1, not released.** The clients, the report and the in-process test relay work, and the first live run against MediaMTX is in [`evals/`](evals/). The latency method is the open question of the next milestone ([WB-1](BACKLOG.md)): MediaMTX does not negotiate the header extension the latency stamp travels in, so against it latency is reported **unavailable** — by design, never estimated.
+**Status: 0.0.1, not released.** The clients, the report and the in-process test relay work, and the first live run against MediaMTX is in [`evals/`](evals/). MediaMTX does not negotiate the header extension 0.0.1's stamp travels in, so against it packet transit is reported **unavailable** — by design, never estimated. The delay method of the next milestone is decided ([WB-1](BACKLOG.md)): one-way delay per frame, by frame fingerprint, which needs no header extension ([WB-38](BACKLOG.md)).
 
 ## Install
 
@@ -59,16 +59,20 @@ The publisher streams a pre-encoded clip, 640×360 at 30 fps, 4 s, a keyframe ev
 
 ## Latency, and its limits
 
-The publisher writes the wall-clock time each RTP packet is handed to the stack into the **abs-capture-time** header extension (`http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time`, a 64-bit NTP timestamp; pion implements its payload as `rtp.AbsCaptureTimeExtension`). A viewer subtracts that stamp from the arrival time of the same packet. With a pre-encoded clip the moment of capture is the moment of sending, which is why the field carries the send time.
+No figure whipbench reports is called "latency": the word covers too many different numbers to rank two servers by. [WB-1](BACKLOG.md) decided which ones whipbench measures; this section says what each is and what it is not.
+
+**Packet transit — what 0.0.1 reports.** The publisher writes the wall-clock time each RTP packet is handed to the stack into the **abs-capture-time** header extension (`http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time`, a 64-bit NTP timestamp; pion implements its payload as `rtp.AbsCaptureTimeExtension`). A viewer subtracts that stamp from the arrival time of the same packet. With a pre-encoded clip the moment of capture is the moment of sending, which is why the field carries the send time.
 
 What that number is, and what it is not:
 
 - It is **network plus server forwarding** plus both clients' WebRTC stacks — the delay a server adds to a stream it relays. It is **not glass-to-glass**: there is no camera, no encoder, no decoder, no jitter buffer and no display in the path.
-- Both clocks must agree. On one host they are the same clock. Across machines they must be synchronised (NTP to a few milliseconds, PTP better), and the error of that synchronisation is the error of the result. How to bound it is [WB-3](BACKLOG.md).
+- Both clocks must agree. On one host they are the same clock. Across machines they must be synchronised (NTP to a few milliseconds, PTP better), and the error of that synchronisation is the error of the result. Measuring that error between two hosts is [WB-3](BACKLOG.md)'s clock exchange.
 - It needs the server to negotiate the extension on both legs and forward it unchanged. A server that does not is reported as **packet transit: unavailable**, with the reason — not negotiated, no stamps arrived, or stamps that give negative or implausible delays. whipbench never substitutes an estimate.
 - Many viewers on one machine load that machine's CPU, and a starved reader adds delay on the client side. Watch the client in a large run; the report records the client's OS, architecture and CPU count.
 
-Measuring glass-to-glass through a timestamp drawn into the frames is the open design question of the next milestone ([WB-1](BACKLOG.md)), deliberately not built yet.
+**One-way delay — the headline, decided by [WB-1](BACKLOG.md) and not built yet.** Per frame: from the publisher writing the frame's first packet to the viewer receiving its last, one sample per complete frame. It is still network plus server forwarding, still not glass-to-glass, and it is the figure servers are ranked by. Its send instant has two sources, side by side and never averaged: the **fingerprint** — each viewer hashes the frame it reassembled and looks up when the publisher sent those bytes, which needs no header extension and so works through a server like MediaMTX ([WB-38](BACKLOG.md), the figure v0.1.0's report is built on) — and the abs-capture-time **stamp**, once per frame instead of per packet, which replaces packet transit ([WB-39](BACKLOG.md)). Every figure will carry its topology, clock method, uncertainty and whether it can be compared with another report ([WB-40](BACKLOG.md)), and its sample window and retransmissions ([WB-41](BACKLOG.md)); between two hosts the clock offset comes from [WB-3](BACKLOG.md).
+
+**Capture-to-decode — later, in v0.6.0.** A frame index drawn into the clips and read back from decoded VP8 keyframes on a sample of viewers ([WB-2](BACKLOG.md)). It differs from one-way delay only where a server transcodes. A timestamp drawn live into the frames would need a live encoder, which whipbench does not have.
 
 ## Scenarios
 
@@ -143,7 +147,7 @@ The end-to-end tests need no network and no external server: `internal/testserve
 
 ## Roadmap
 
-[BACKLOG.md](BACKLOG.md) is the plan and [ROADMAP.md](ROADMAP.md) is generated from it. In short: v0.1.0 decides the latency method (WB-1) and records a live run against MediaMTX with the first report; v0.2.0 adds simulcast, layer switches and metrics; v0.3.0 is the comparative report across four servers and a write-up; v0.4.0 spreads the load over several machines and reports the client's own ceiling; v0.5.0 runs whipbench in CI with assertions and a GitHub Action; v0.6.0 measures what the viewer sees — freezes, picture quality, impaired networks; and v1.0.0 freezes the report schema, the CLI and the scenario keys, with every published number reproducible.
+[BACKLOG.md](BACKLOG.md) is the plan and [ROADMAP.md](ROADMAP.md) is generated from it. In short: v0.1.0 measures one-way delay by frame fingerprint (WB-1 decided it, WB-38 builds it) and records a live run against MediaMTX with the first report; v0.2.0 adds simulcast, layer switches and metrics, and the stamp, clock and comparability around one-way delay (WB-39 to WB-41); v0.3.0 is the comparative report across four servers and a write-up; v0.4.0 spreads the load over several machines and reports the client's own ceiling; v0.5.0 runs whipbench in CI with assertions and a GitHub Action; v0.6.0 measures what the viewer sees — capture-to-decode (WB-2), freezes, picture quality, impaired networks; and v1.0.0 freezes the report schema, the CLI and the scenario keys, with every published number reproducible.
 
 ## License
 
