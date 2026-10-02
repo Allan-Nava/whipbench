@@ -4,13 +4,13 @@
 
 > This page is **generated** from [BACKLOG.md](BACKLOG.md), the single source of truth for planned work. Regenerate it with `npm run roadmap` after editing the backlog — CI fails when the two disagree.
 
-**41 items · 7 shipped · 34 open · 8 milestones.**
+**41 items · 8 shipped · 33 open · 8 milestones.**
 
 ## At a glance
 
 | Milestone | Phase | Progress | Open | Shipped |
 |---|---|---|---|---|
-| **v0.1.0 — The latency method, and a first report that means something** | now | `#.........` 13% | 7 | 1 |
+| **v0.1.0 — The latency method, and a first report that means something** | now | `###.......` 25% | 6 | 2 |
 | **v0.2.0 — Simulcast, layer switches and metrics** | next | `..........` 0% | 8 | 0 |
 | **v0.3.0 — The comparative report across four servers** | later | `..........` 0% | 4 | 0 |
 | **v0.4.0 — Load from many machines** | later | `..........` 0% | 3 | 0 |
@@ -21,7 +21,7 @@
 
 ## v0.1.0 — The latency method, and a first report that means something
 
-- [ ] **WB-1** — Latency method: run QRSPI on it · high · L · research, measurement
+- [x] **WB-1** — Latency method: run QRSPI on it · high · L · research, measurement · `main`
 - [ ] **WB-3** — Clock exchange between publish and view · high · M · client, measurement
 - [ ] **WB-4** — What each server forwards: extensions, payload bytes, marker bit · high · M · research, benchmark
 - [ ] **WB-5** — Live run against MediaMTX with the decided method · high · M · benchmark

@@ -30,13 +30,18 @@ delay — WB-1 chose one-way delay per frame, by frame fingerprint (WB-38) — r
 against MediaMTX, and publishes that report. **No v0.1.0 before WB-1 has a decided
 method and WB-5 is in `evals/`.**
 
-- [ ] **WB-1 — Latency method: run QRSPI on it**: one fresh session per phase, starting
+- [x] **WB-1 — Latency method: run QRSPI on it**: one fresh session per phase, starting
   from the empty Questions artifact in `thoughts/WB-1-latency-method/`. What it must
   settle: whether abs-capture-time stays the network stamp or a custom extension is
   needed for servers that negotiate only what they know; whether glass-to-glass is
   measured through a timestamp drawn into the frames (WB-2); what a viewer reports when
   the two disagree; and what "latency" means in a report so two servers can be
-  compared. <!-- wb: prio=high size=L labels=research,measurement -->
+  compared. Done 2026-10-02:
+  all six phases in `thoughts/WB-1-latency-method/` (#36–#48), each approved by the
+  maintainer; the decision is one-way delay per frame by fingerprint (WB-38), the
+  abs-capture-time stamp once per frame (WB-39), topology and clock in the report (WB-40),
+  the window and retransmissions beside it (WB-41); the 0.0.1 metric is packet transit.
+  <!-- wb: prio=high size=L labels=research,measurement ver=main -->
 - [ ] **WB-3 — Clock exchange between publish and view**: how a split run, publisher and
   viewers on different hosts, measures the clock offset it runs with (WB-1, D6).
   `whipbench publish` answers a small clock responder, opt-in by flag, and
