@@ -202,9 +202,9 @@ Every figure carries topology, clock method, uncertainty and a `comparable` verd
 
 Facts the design assumes but `01-research.md` did not verify:
 
-- [ ] D4: MediaMTX and the WB-4 servers forward depacketised VP8 frames / H.264 VCL NALs byte for byte.
-- [ ] D4: the 120 encoded frames of each clip are pairwise byte-distinct.
-- [ ] D2: MediaMTX preserves the marker bit (a research blind spot).
+- [ ] D4: the WB-4 servers forward depacketised VP8 frames / H.264 VCL NALs byte for byte — MediaMTX v1.21.1 does (451/451, 450/450; `evals/2026-10-02-mediamtx-fingerprint.md`); the others are unverified.
+- [x] D4: the 120 encoded frames of each clip are pairwise byte-distinct — 120/120 for both clips (2026-10-02, `evals/2026-10-02-mediamtx-fingerprint.md`).
+- [x] D2: MediaMTX preserves the marker bit — one per frame on both codecs (2026-10-02, `evals/2026-10-02-mediamtx-fingerprint.md`).
 - [ ] D3: pion's NACK responder resends the stored packet with its header extensions.
 - [ ] D7: the viewer's stats-interceptor NACK count means "NACKs sent"; recovered packets vs `tooLate` (`internal/rtpstats/rtpstats.go:155-162`).
 - [ ] D4/D5: CPU per viewer of reassembly + hash at scale, and of one `x/image/vp8` keyframe decode at 640×360.
