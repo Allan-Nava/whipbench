@@ -24,11 +24,11 @@ synced from it one way on every push to `main` that changes this file.
 
 ## v0.1.0 — The latency method, and a first report that means something <!-- ms: phase=now -->
 
-0.0.1 measures one-way delay only where the server forwards abs-capture-time, and the
+0.0.1 measures packet transit only where the server forwards abs-capture-time, and the
 first server tried does not negotiate it. This milestone decides how whipbench measures
-latency — through the network, and glass to glass — runs it against MediaMTX, and
-publishes that report. **No v0.1.0 before WB-1 has a decided method and WB-5 is in
-`evals/`.**
+delay — WB-1 chose one-way delay per frame, by frame fingerprint (WB-38) — runs it
+against MediaMTX, and publishes that report. **No v0.1.0 before WB-1 has a decided
+method and WB-5 is in `evals/`.**
 
 - [ ] **WB-1 — Latency method: run QRSPI on it**: one fresh session per phase, starting
   from the empty Questions artifact in `thoughts/WB-1-latency-method/`. What it must
@@ -37,26 +37,31 @@ publishes that report. **No v0.1.0 before WB-1 has a decided method and WB-5 is 
   measured through a timestamp drawn into the frames (WB-2); what a viewer reports when
   the two disagree; and what "latency" means in a report so two servers can be
   compared. <!-- wb: prio=high size=L labels=research,measurement -->
-- [ ] **WB-2 — Visual timestamp for glass-to-glass**: the open design question. Encode
-  the send time into the picture (a binary strip, a QR-like block, a frame counter) so a
-  viewer that decodes can read it back after the server's own pipeline — which is the
-  only latency a server that strips extensions or transcodes cannot hide. Needs a
-  decoder in the viewer (cgo, or a pure-Go VP8 decoder) and so collides with the
-  pure-Go rule; the cost per viewer decides whether it runs on every viewer or a sample.
-  <!-- wb: prio=high size=L labels=research,measurement -->
-- [ ] **WB-3 — Clock synchronisation between machines**: one-way delay across two hosts
-  is only as good as their clock agreement. Decide what whipbench requires (NTP, chrony,
-  PTP), how it measures the offset it is running with (an NTP query at start and end, or
-  an RTT-halving exchange with the other side), and how the report carries that error
-  bar instead of a bare number. <!-- wb: prio=high size=M labels=research,measurement -->
-- [ ] **WB-4 — Header extensions, server by server**: for MediaMTX, OvenMediaEngine,
-  LiveKit and Janus, record whether the WHIP and WHEP answers negotiate abs-capture-time,
-  whether the server forwards it, rewrites it or strips it, and which extensions it does
-  forward. MediaMTX v1.21.1 negotiates it on neither leg (2026-10-01). The table decides
-  how much of WB-1 can rest on an extension at all. <!-- wb: prio=high size=M labels=research,benchmark -->
+- [ ] **WB-3 — Clock exchange between publish and view**: how a split run, publisher and
+  viewers on different hosts, measures the clock offset it runs with (WB-1, D6).
+  `whipbench publish` answers a small clock responder, opt-in by flag, and
+  `whipbench view --clock-peer HOST:PORT` runs an RTT-halving exchange against it at
+  start, at end and every 30 s: offset ± min-RTT/2, piecewise-linear between the
+  points, written into WB-40's `clock` block. Without `--clock-peer` the method is
+  `none`, the delay `comparable: false`, "publisher clock not measured". The responder
+  opens a second port between the load hosts; reports still carry no host names. RTCP
+  sender reports and `chronyc` were rejected: SFUs originate their own SRs, and chrony
+  reports each daemon's view of its upstream, not of the peer.
+  <!-- wb: prio=high size=M labels=client,measurement -->
+- [ ] **WB-4 — What each server forwards: extensions, payload bytes, marker bit**: for
+  MediaMTX, OvenMediaEngine, LiveKit and Janus, record whether the WHIP and WHEP answers
+  negotiate abs-capture-time, whether the server forwards it, rewrites it or strips it,
+  and which extensions it does forward (WB-39 rests on it); whether it forwards each
+  depacketised VP8 frame, and each H.264 frame's VCL NAL units, byte for byte (WB-38's
+  fingerprint rests on it); and whether it keeps the marker bit on each frame's last
+  packet (WB-38's frame end). MediaMTX v1.21.1 negotiates abs-capture-time on neither
+  leg (2026-10-01), and forwards frames byte for byte with one marker per frame on both
+  codecs (2026-10-02, `evals/2026-10-02-mediamtx-fingerprint.md`); the other three are
+  unverified. <!-- wb: prio=high size=M labels=research,benchmark -->
 - [ ] **WB-5 — Live run against MediaMTX with the decided method**: the 0.0.1 smoke run
-  repeated with WB-1's method, published in `evals/` as the first report that carries a
-  latency figure or says, with evidence, why it cannot. <!-- wb: prio=high size=M labels=benchmark -->
+  repeated with WB-1's method, one-way delay by frame fingerprint (WB-38), published in
+  `evals/` as the first report that carries a one-way delay figure or says, with
+  evidence, why it cannot. <!-- wb: prio=high size=M labels=benchmark -->
 - [ ] **WB-6 — Ethics of load-testing managed services**: write down the rule the README
   states in one line — only servers you run, a managed service only on your own account
   and within its terms, or with written permission — and what a run against a managed
@@ -148,7 +153,7 @@ publishes that report. **No v0.1.0 before WB-1 has a decided method and WB-5 is 
 
 - [ ] **WB-20 — Four servers, one scenario set**: MediaMTX, OvenMediaEngine, LiveKit and
   Janus, each in Docker on the same machine (and then on separate machines with WB-3's
-  clock discipline), the same scenarios, every run in `evals/`.
+  clock exchange), the same scenarios, every run in `evals/`.
   <!-- wb: prio=high size=L labels=benchmark -->
 - [ ] **WB-21 — `whipbench compare`**: reads several reports and renders them side by
   side, refusing to compare runs whose scenarios, clips or client machines differ, and
@@ -167,8 +172,8 @@ can never be mistaken for a slow server.
 
 - [ ] **WB-24 — Coordinated multi-host runs**: `whipbench agent` on each load host and one
   coordinator that hands out the scenario, starts every agent at a shared instant, and
-  merges their reports into one, per host and in total. Needs WB-3's clock discipline;
-  an agent whose clock offset is unknown contributes no latency samples.
+  merges their reports into one, per host and in total. Needs WB-3's clock exchange;
+  an agent whose clock offset is unknown contributes no comparable one-way delay (WB-40).
   <!-- wb: prio=high size=L labels=client,report -->
 - [ ] **WB-25 — The client's own ceiling**: calibrate how many viewers one machine sustains
   against the in-process relay before its own CPU, scheduler or socket buffers skew the
@@ -201,6 +206,19 @@ Packets arriving is not video playing. Once viewers decode (WB-2), they can meas
 a person would notice — and the network can be made worse on purpose to see how each
 server copes.
 
+- [ ] **WB-2 — Keyframe capture-to-decode for VP8**: the third delay figure (WB-1, D5),
+  built here beside transcoding (WB-31), where it first measures something WB-38 cannot.
+  `scripts/make-clips.sh` draws a block code — a 16-bit frame index plus check bits,
+  sized for 600 kbit/s — into each source frame, and the clips are regenerated once. Up
+  to 10 sampled viewers decode keyframes only, with `golang.org/x/image/vp8` (BSD-3, pure
+  Go, so the pure-Go rule holds), read the index back and take the send time from
+  WB-38's send log, keyed by index: capture-to-decode is the keyframe's decode at the
+  endpoint decoder's output minus t0. Unreadable codes are counted, never guessed;
+  keyframes are the largest frames, so the figure is biased high and labelled so; no
+  H.264. `methodsDisagree` flags it against WB-38's figure, never averaged. A vetted
+  pure-Go inter-frame decoder would upgrade it to every frame. Open: whether a code
+  drawn by `make-clips.sh` survives libvpx at 600 kbit/s and reads back after decode.
+  <!-- wb: prio=med size=L labels=measurement,research -->
 - [ ] **WB-30 — Freezes and frame drops**: from the decoded frames, the count and length of
   visible freezes and the frames that never displayed, per viewer and in total.
   <!-- wb: prio=high size=M labels=measurement -->
