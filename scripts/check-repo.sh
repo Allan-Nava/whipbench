@@ -12,8 +12,8 @@ for f in README.md CLAUDE.md AGENTS.md CONTRIBUTING.md LICENSE BACKLOG.md ROADMA
   [ -f "$f" ] || fail "$f is missing"
 done
 # The honest limits the README must state, in so many words.
-grep -q "not glass-to-glass" README.md || fail "README.md must say latency is not glass-to-glass"
-grep -q "latency: unavailable" README.md || fail "README.md must say a stripped extension gives 'latency: unavailable'"
+grep -q "not glass-to-glass" README.md || fail "README.md must say packet transit is not glass-to-glass"
+grep -q "packet transit: unavailable" README.md || fail "README.md must say a stripped extension gives 'packet transit: unavailable'"
 grep -q "No-verdict rule" README.md || fail "README.md must state the no-verdict rule"
 grep -q "Hosts only" README.md || fail "README.md must state that reports record hosts only"
 # The threshold the README states is the one the code applies.

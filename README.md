@@ -2,7 +2,7 @@
 
 <p align="center"><img src="https://raw.githubusercontent.com/Allan-Nava/whipbench/main/assets/logo.svg" width="72" height="72" alt=""></p>
 
-whipbench publishes a synthetic clip over **WHIP** (RFC 9725), plays it back with any number of **WHEP** viewers, and writes a report of what an operator cares about — join time, one-way delay, packet loss, jitter, keyframe interval and run stability — with the same definitions whichever server sits in the middle. The clients are native Go on [pion/webrtc](https://github.com/pion/webrtc) v4, with no browser, so one machine can drive many viewers, and the report is meant to be laid next to another server's.
+whipbench publishes a synthetic clip over **WHIP** (RFC 9725), plays it back with any number of **WHEP** viewers, and writes a report of what an operator cares about — join time, packet transit, packet loss, jitter, keyframe interval and run stability — with the same definitions whichever server sits in the middle. The clients are native Go on [pion/webrtc](https://github.com/pion/webrtc) v4, with no browser, so one machine can drive many viewers, and the report is meant to be laid next to another server's.
 
 **Status: 0.0.1, not released.** The clients, the report and the in-process test relay work, and the first live run against MediaMTX is in [`evals/`](evals/). The latency method is the open question of the next milestone ([WB-1](BACKLOG.md)): MediaMTX does not negotiate the header extension the latency stamp travels in, so against it latency is reported **unavailable** — by design, never estimated.
 
@@ -50,10 +50,10 @@ Every viewer records its own numbers; the report adds aggregates over the viewer
 | loss | expected = highest − first extended sequence number + 1 (RFC 3550 A.1); lost = expected − received; duplicates are not counted as received |
 | jitter | RFC 3550 §6.4.1 interarrival jitter, J += (\|D\| − J)/16 on every packet, in milliseconds |
 | keyframe interval | spacing of keyframe starts in RTP time — the GOP the server actually delivers |
-| one-way delay | arrival time − the publisher's send-time stamp, per packet; see the next section |
+| packet transit | arrival time − the publisher's send-time stamp, per packet — not the one-way delay of a frame; see the next section |
 | stability | stalls (a gap of 500 ms or more between packets), viewers dropped after joining, publisher schedule slips, and a per-second timeline of active viewers and packets |
 
-Percentiles are nearest-rank: p95 is a value some viewer actually had. Join, loss and jitter take one value per joined viewer; one-way delay pools every packet of every viewer in a histogram with 1% buckets (min, max and mean exact).
+Percentiles are nearest-rank: p95 is a value some viewer actually had. Join, loss and jitter take one value per joined viewer; packet transit pools every packet of every viewer in a histogram with 1% buckets (min, max and mean exact).
 
 The publisher streams a pre-encoded clip, 640×360 at 30 fps, 4 s, a keyframe every 30 frames, in VP8 or constrained-baseline H.264. [`scripts/make-clips.sh`](scripts/make-clips.sh) records the exact ffmpeg command and remakes them. Frames go on the wire byte for byte, paced at the frame rate, and the loop is seamless: frame *k* has RTP timestamp base + 3000·*k* whichever pass it belongs to. NACK is negotiated, RTX is not, so a retransmission arrives on the original sequence space and the loss a viewer reports is what was never recovered.
 
@@ -65,7 +65,7 @@ What that number is, and what it is not:
 
 - It is **network plus server forwarding** plus both clients' WebRTC stacks — the delay a server adds to a stream it relays. It is **not glass-to-glass**: there is no camera, no encoder, no decoder, no jitter buffer and no display in the path.
 - Both clocks must agree. On one host they are the same clock. Across machines they must be synchronised (NTP to a few milliseconds, PTP better), and the error of that synchronisation is the error of the result. How to bound it is [WB-3](BACKLOG.md).
-- It needs the server to negotiate the extension on both legs and forward it unchanged. A server that does not is reported as **latency: unavailable**, with the reason — not negotiated, no stamps arrived, or stamps that give negative or implausible delays. whipbench never substitutes an estimate.
+- It needs the server to negotiate the extension on both legs and forward it unchanged. A server that does not is reported as **packet transit: unavailable**, with the reason — not negotiated, no stamps arrived, or stamps that give negative or implausible delays. whipbench never substitutes an estimate.
 - Many viewers on one machine load that machine's CPU, and a starved reader adds delay on the client side. Watch the client in a large run; the report records the client's OS, architecture and CPU count.
 
 Measuring glass-to-glass through a timestamp drawn into the frames is the open design question of the next milestone ([WB-1](BACKLOG.md)), deliberately not built yet.
@@ -100,11 +100,11 @@ Each run writes JSON (schema `whipbench.report/v0`) and a Markdown rendering of 
 
 - **Hosts only.** An endpoint is recorded as its host and port. Paths, query strings, user info and tokens are where servers carry stream keys, so they never reach a report, an error message or the console — the tests assert it.
 - **No-verdict rule.** When more than 10% of the viewers failed to join, the aggregate is marked invalid and the Markdown prints the reason instead of the numbers. The viewers that did join describe a smaller run than the one asked for, and quoting them would flatter the server. A run whose publisher never streamed, or that was interrupted, has no verdict either.
-- **Metrics.** With `--metrics 127.0.0.1:9464` (or `"metrics"` in the scenario) the run serves Prometheus text format at `/metrics`: viewers started, joined, failed and active, packets and bytes received and sent, and a histogram of one-way delay. The exposition is written by hand — a dozen series did not justify the client library's dependency tree.
+- **Metrics.** With `--metrics 127.0.0.1:9464` (or `"metrics"` in the scenario) the run serves Prometheus text format at `/metrics`: viewers started, joined, failed and active, packets and bytes received and sent, and a histogram of packet transit (`whipbench_packet_transit_seconds`). The exposition is written by hand — a dozen series did not justify the client library's dependency tree.
 
 ## First live numbers
 
-[`evals/2026-10-01-mediamtx-local.md`](evals/2026-10-01-mediamtx-local.md): MediaMTX v1.21.1 in Docker on the same laptop, 10 and 50 viewers, VP8 and H.264. All viewers joined, no packet was lost, and latency was unavailable because MediaMTX's answers did not negotiate abs-capture-time. One machine, one server, loopback: it shows the tool works end to end and nothing about how MediaMTX compares with anything.
+[`evals/2026-10-01-mediamtx-local.md`](evals/2026-10-01-mediamtx-local.md): MediaMTX v1.21.1 in Docker on the same laptop, 10 and 50 viewers, VP8 and H.264. All viewers joined, no packet was lost, and packet transit (the 0.0.1 reports' `latency` key) was unavailable because MediaMTX's answers did not negotiate abs-capture-time. One machine, one server, loopback: it shows the tool works end to end and nothing about how MediaMTX compares with anything.
 
 ## How it compares
 
@@ -122,7 +122,7 @@ Stated plainly, because a benchmark that hides them is worse than none:
 - **Not glass-to-glass**, and no visual quality: the viewers never decode. "First keyframe" is the moment a frame could be decoded.
 - **The clip cannot answer PLI or FIR.** A new viewer waits for the next keyframe of the loop, up to 1 s, so join time measures the server plus up to one GOP. A server that caches the last keyframe will look faster here than one that does not, which is a real difference, but a different one from a live encoder that can be asked for a keyframe.
 - **Video only, one stream, no simulcast** yet ([WB-15](BACKLOG.md)), no audio, no TURN, host ICE candidates only (no STUN), no trickle ICE: each offer is sent after gathering completes.
-- **Latency needs the extension** to survive the server, and clocks that agree; otherwise it is unavailable.
+- **Packet transit needs the extension** to survive the server, and clocks that agree; otherwise it is unavailable.
 - **One client machine** loads its own CPU and network; at high viewer counts the client can become the bottleneck before the server does.
 
 ## Load-testing etiquette

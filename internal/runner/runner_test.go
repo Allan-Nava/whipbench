@@ -91,10 +91,10 @@ func TestRoundTripVP8(t *testing.T) {
 	if rep.Publisher == nil || !rep.Publisher.Stamped || rep.Publisher.FramesSent < 60 {
 		t.Fatalf("publisher: %+v", rep.Publisher)
 	}
-	if !a.Latency.Available || a.Latency.Viewers != 4 || a.Latency.Ms == nil {
-		t.Fatalf("latency over loopback through the relay must be available: %+v", a.Latency)
+	if !a.PacketTransit.Available || a.PacketTransit.Viewers != 4 || a.PacketTransit.Ms == nil {
+		t.Fatalf("packet transit over loopback through the relay must be available: %+v", a.PacketTransit)
 	}
-	if l := a.Latency.Ms; l.P50 <= 0 || l.P99 > 1000 {
+	if l := a.PacketTransit.Ms; l.P50 <= 0 || l.P99 > 1000 {
 		t.Fatalf("implausible loopback delay: %+v", l)
 	}
 	for _, v := range rep.Viewers {
@@ -121,7 +121,7 @@ func TestRoundTripH264(t *testing.T) {
 		t.Fatalf("aggregate: %+v\nerrors: %v", rep.Aggregate, rep.Errors)
 	}
 	for _, v := range rep.Viewers {
-		if v.Codec != "h264" || v.RTP.Lost != 0 || !v.Latency.Available {
+		if v.Codec != "h264" || v.RTP.Lost != 0 || !v.PacketTransit.Available {
 			t.Errorf("viewer %d: %+v", v.ID, v)
 		}
 	}
@@ -134,13 +134,13 @@ func TestStrippedExtensionIsUnavailableNotGuessed(t *testing.T) {
 	if !a.Valid {
 		t.Fatalf("stripping the stamp must not invalidate the run: %+v", a)
 	}
-	if a.Latency.Available || a.Latency.Ms != nil {
-		t.Fatalf("latency must be unavailable when the stamp is stripped: %+v", a.Latency)
+	if a.PacketTransit.Available || a.PacketTransit.Ms != nil {
+		t.Fatalf("packet transit must be unavailable when the stamp is stripped: %+v", a.PacketTransit)
 	}
-	if !strings.Contains(a.Latency.Reason, "no stamps arrived") {
-		t.Fatalf("reason %q", a.Latency.Reason)
+	if !strings.Contains(a.PacketTransit.Reason, "no stamps arrived") {
+		t.Fatalf("reason %q", a.PacketTransit.Reason)
 	}
-	if md := rep.Markdown(); !strings.Contains(md, "**Latency: unavailable**") {
+	if md := rep.Markdown(); !strings.Contains(md, "**Packet transit: unavailable**") {
 		t.Fatalf("the Markdown must say so:\n%s", md)
 	}
 }

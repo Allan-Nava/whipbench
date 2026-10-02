@@ -101,12 +101,12 @@ type Aggregate struct {
 	PacketsLost     uint64  `json:"packetsLost"`
 	LossTotal       float64 `json:"lossPercentTotal"`
 
-	Latency Latency `json:"latency"`
+	PacketTransit PacketTransit `json:"packetTransit"`
 }
 
-// Latency is the pooled one-way delay of every stamped packet of every viewer
-// whose latency was available.
-type Latency struct {
+// PacketTransit is the pooled packet transit of every stamped packet of every
+// viewer that had it.
+type PacketTransit struct {
 	Available bool           `json:"available"`
 	Reason    string         `json:"reason,omitempty"`
 	Viewers   int            `json:"viewers"`
@@ -170,7 +170,7 @@ func aggregate(target int, vs []viewer.Result, pub *publisher.Result) Aggregate 
 	a := Aggregate{Viewers: max(target, len(vs))}
 	var sig, rtp1, key, loss, jit, kfi []float64
 	hist := stats.NewHistogram()
-	var noLatency []string
+	var noTransit []string
 	for _, v := range vs {
 		if !v.Joined {
 			continue
@@ -196,11 +196,11 @@ func aggregate(target int, vs []viewer.Result, pub *publisher.Result) Aggregate 
 		a.Stalls += v.RTP.Stalls
 		a.PacketsReceived += v.RTP.Received
 		a.PacketsLost += v.RTP.Lost
-		if h := v.Latency.Histogram(); h != nil {
+		if h := v.PacketTransit.Histogram(); h != nil {
 			hist.Merge(h)
-			a.Latency.Viewers++
+			a.PacketTransit.Viewers++
 		} else {
-			noLatency = append(noLatency, v.Latency.Reason)
+			noTransit = append(noTransit, v.PacketTransit.Reason)
 		}
 	}
 	a.Failed = a.Viewers - a.Joined
@@ -215,16 +215,16 @@ func aggregate(target int, vs []viewer.Result, pub *publisher.Result) Aggregate 
 
 	switch {
 	case hist.Count() > 0:
-		a.Latency.Available = true
+		a.PacketTransit.Available = true
 		s := hist.Summary()
-		a.Latency.Ms = &s
-		if n := len(noLatency); n > 0 {
-			a.Latency.Reason = fmt.Sprintf("pooled over %d of %d joined viewers; the other %d had none (%s)", a.Latency.Viewers, a.Joined, n, mostCommon(noLatency))
+		a.PacketTransit.Ms = &s
+		if n := len(noTransit); n > 0 {
+			a.PacketTransit.Reason = fmt.Sprintf("pooled over %d of %d joined viewers; the other %d had none (%s)", a.PacketTransit.Viewers, a.Joined, n, mostCommon(noTransit))
 		}
 	case a.Joined == 0:
-		a.Latency.Reason = "no viewer joined"
+		a.PacketTransit.Reason = "no viewer joined"
 	default:
-		a.Latency.Reason = mostCommon(noLatency)
+		a.PacketTransit.Reason = mostCommon(noTransit)
 	}
 
 	a.Valid, a.Verdict = verdict(a, pub)
@@ -287,7 +287,7 @@ var Method = []string{
 	"Loss: expected = highest − first extended sequence number + 1 (RFC 3550 A.1), lost = expected − received, duplicates not counted. Measured on the stream the viewer receives, after NACK recovery; RTX is not negotiated, so a retransmission counts as received.",
 	"Jitter: RFC 3550 §6.4.1 interarrival jitter, J += (|D| − J)/16 per packet, in milliseconds.",
 	"Keyframe interval: spacing of keyframe starts in RTP time, i.e. the GOP the server delivers. The publisher's clip has a fixed 1 s GOP and cannot answer PLI, so a joining viewer waits for the next keyframe in the loop.",
-	"Latency: the publisher stamps each packet's wall-clock send time in the abs-capture-time RTP header extension; a viewer's sample is its arrival time minus the stamp. It is network plus server forwarding plus both clients' stacks, on one host or synchronised clocks — not glass-to-glass. When the server does not negotiate or forward the extension, latency is reported unavailable, never estimated.",
-	"Percentiles are nearest-rank. Join, loss and jitter summaries take one value per joined viewer; latency pools every valid sample of every viewer with latency, in a histogram with 1% buckets.",
+	"Packet transit: the publisher stamps each packet's wall-clock send time in the abs-capture-time RTP header extension; a viewer's sample is its arrival time minus the stamp. It is network plus server forwarding plus both clients' stacks, per packet rather than per frame, on one host or synchronised clocks — not glass-to-glass. When the server does not negotiate or forward the extension, packet transit is reported unavailable, never estimated.",
+	"Percentiles are nearest-rank. Join, loss and jitter summaries take one value per joined viewer; packet transit pools every valid sample of every viewer that has it, in a histogram with 1% buckets.",
 	"No-verdict rule: when more than 10% of the viewers failed to join, the aggregate is not valid and must not be quoted.",
 }

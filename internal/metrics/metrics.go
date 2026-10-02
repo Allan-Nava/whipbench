@@ -15,8 +15,8 @@ import (
 	"sync/atomic"
 )
 
-// DelayBucketsMs are the upper bounds of the one-way delay histogram.
-var DelayBucketsMs = []float64{1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000}
+// TransitBucketsMs are the upper bounds of the packet transit histogram.
+var TransitBucketsMs = []float64{1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000}
 
 // Live is the shared state of a run. All methods are safe for concurrent use; the
 // zero value is ready, and a nil *Live ignores every call, so code that records
@@ -33,9 +33,9 @@ type Live struct {
 	PacketsSent     atomic.Uint64
 	FramesSent      atomic.Uint64
 
-	delayBuckets [12]atomic.Uint64 // len(DelayBucketsMs)
-	delayCount   atomic.Uint64
-	delaySumUs   atomic.Uint64
+	transitBuckets [12]atomic.Uint64 // len(TransitBucketsMs)
+	transitCount   atomic.Uint64
+	transitSumUs   atomic.Uint64
 }
 
 // Packet records one received packet of size n bytes.
@@ -47,19 +47,19 @@ func (l *Live) Packet(n int) {
 	l.BytesReceived.Add(uint64(max(n, 0))) //nolint:gosec // non-negative
 }
 
-// Delay records one one-way delay sample.
-func (l *Live) Delay(ms float64) {
+// PacketTransit records one packet transit sample, in milliseconds.
+func (l *Live) PacketTransit(ms float64) {
 	if l == nil || ms < 0 || math.IsNaN(ms) {
 		return
 	}
-	for i, b := range DelayBucketsMs {
+	for i, b := range TransitBucketsMs {
 		if ms <= b {
-			l.delayBuckets[i].Add(1)
+			l.transitBuckets[i].Add(1)
 			break
 		}
 	}
-	l.delayCount.Add(1)
-	l.delaySumUs.Add(uint64(ms * 1000))
+	l.transitCount.Add(1)
+	l.transitSumUs.Add(uint64(ms * 1000))
 }
 
 // Handler serves /metrics.
@@ -90,14 +90,14 @@ func (l *Live) Write(w io.Writer) {
 	counter("publisher_rtp_packets_sent_total", "RTP packets the publisher has written.", l.PacketsSent.Load())
 	counter("publisher_frames_sent_total", "Frames the publisher has written.", l.FramesSent.Load())
 
-	const h = "whipbench_one_way_delay_seconds"
-	fmt.Fprintf(w, "# HELP %s Send-stamp to arrival delay of stamped packets (network plus server, not glass-to-glass).\n# TYPE %s histogram\n", h, h)
+	const h = "whipbench_packet_transit_seconds"
+	fmt.Fprintf(w, "# HELP %s Packet transit: arrival time minus the send-time stamp, per stamped packet (network plus server, not glass-to-glass).\n# TYPE %s histogram\n", h, h)
 	var cum uint64
-	for i, b := range DelayBucketsMs {
-		cum += l.delayBuckets[i].Load()
+	for i, b := range TransitBucketsMs {
+		cum += l.transitBuckets[i].Load()
 		fmt.Fprintf(w, "%s_bucket{le=\"%s\"} %d\n", h, strconv.FormatFloat(b/1000, 'g', -1, 64), cum)
 	}
-	n := l.delayCount.Load()
+	n := l.transitCount.Load()
 	fmt.Fprintf(w, "%s_bucket{le=\"+Inf\"} %d\n%s_sum %s\n%s_count %d\n", h, n, h,
-		strconv.FormatFloat(float64(l.delaySumUs.Load())/1e6, 'g', -1, 64), h, n)
+		strconv.FormatFloat(float64(l.transitSumUs.Load())/1e6, 'g', -1, 64), h, n)
 }
