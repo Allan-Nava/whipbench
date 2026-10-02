@@ -261,9 +261,9 @@ Holding as assumed:
 ## Status
 
 - [x] Research complete
-- [ ] Self-contained (explicit paths, no reference to session context)
-- [ ] Zero solution proposals
-- [ ] Reviewed (<date>, <who>)
+- [x] Self-contained (explicit paths, no reference to session context)
+- [x] Zero solution proposals
+- [x] Reviewed (2026-10-02, Allan Nava, in chat: "ok va bene" — read the five contradictions in summary)
 
 > **Compression ratio:** ~0.9M tokens burned (eight subagent runs, four of them repeats after an interrupted hand-back) → ~7k artifact tokens = ~130×
 > Next phase: **Design**. It receives: this file + `00-questions.md` + the ticket.
