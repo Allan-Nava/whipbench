@@ -74,6 +74,22 @@ publishes that report. **No v0.1.0 before WB-1 has a decided method and WB-5 is 
   times cluster (the 10-viewer MediaMTX run: p50 1003 ms, min 1001 ms). Add an optional
   seeded offset per viewer, recorded in the report, so join time samples the GOP evenly
   whatever the ramp. <!-- wb: prio=med size=S labels=measurement -->
+- [ ] **WB-38 — One-way delay by frame fingerprint**: the headline delay figure, and the
+  one WB-5 publishes (WB-1, D2 and D4 in `thoughts/WB-1-latency-method/02-design.md`). In
+  `run` the publisher logs t0 = `time.Now()` just before each frame's first `WriteRTP`,
+  under a 64-bit hash of the frame's depacketised bytes: the whole VP8 frame, and for
+  H.264 the VCL NAL units only, because a server may add or repeat SPS/PPS. Every viewer
+  reassembles frames (pion `samplebuilder`), hashes them the same way and takes the
+  latest send of that hash before t1, the arrival of the frame's marker packet. One
+  sample per complete frame, NACK-recovered packets included; incomplete frames are
+  counted, not sampled. Monotonic clock at both ends, report keys under `oneWayDelay`,
+  source `fingerprint`; no header extension and no decoder, so it survives a server that
+  drops abs-capture-time. The report states its limit: a frame later than the 4 s clip
+  loop is ambiguous, and its sample is invalid. Byte-identical frames are excluded when
+  the clip loads; a bitstream rewrite counts as `unmatchedFrames`; a server that drops
+  the marker bit (WB-4) ends the frame at the last packet before the next RTP timestamp.
+  Open: the CPU per viewer of reassembly and hashing at scale is unmeasured (WB-25's
+  ceiling). <!-- wb: prio=high size=L labels=measurement,client -->
 
 ## v0.2.0 — Simulcast, layer switches and metrics <!-- ms: phase=next -->
 
@@ -91,6 +107,42 @@ publishes that report. **No v0.1.0 before WB-1 has a decided method and WB-5 is 
 - [ ] **WB-19 — STUN, TURN and trickle ICE**: ICE servers in the scenario, trickle ICE
   through WHIP/WHEP PATCH, so servers behind NAT and TURN-relayed viewers can be
   measured. <!-- wb: prio=low size=M labels=client -->
+- [ ] **WB-39 — abs-capture-time once per frame**: the stamp source beside WB-38's
+  fingerprint (WB-1, D3). The publisher writes abs-capture-time = t0 on each frame's
+  first packet only, instead of on every packet, and the viewer joins it to its frame by
+  RTP timestamp. In `run` the publisher keeps the values it sent, so a stamp outside that
+  set is counted as rewritten, never sampled. Each leg is classified — publisher
+  `negotiated` or `dropped`, viewer `forwarded`, `rewritten`, `dropped` or `unverified`
+  (split runs) — and the figure is a wall-clock difference, exposed to clock steps
+  (WB-40). It ships under `oneWayDelay` with source `stamp` and retires packet transit,
+  the 0.0.1 per-packet figure, with its `packetTransit` key and its Prometheus series.
+  Open: whether pion's NACK responder resends the stored packet with its header
+  extensions, so that a retransmitted first packet still carries the stamp.
+  <!-- wb: prio=med size=M labels=measurement,client -->
+- [ ] **WB-40 — Topology, clock and comparability in the report**: what makes two delay
+  figures comparable (WB-1, D6 and D8). Every report gains `topology` (`single-process`
+  or `split`) and `clock` (`method`, `offsetMs`, `uncertaintyMs`, `stepDetected`), and no
+  host names. In `run` the method is `monotonic` for the fingerprint or `same-wall-clock`
+  for the stamp, and wall-clock and monotonic elapsed time more than 0.1 ms apart at run
+  end set `stepDetected`; in `view` the offset comes from WB-3's exchange, or the method
+  is `none` and the figure `comparable: false`. Each source gets one block — source,
+  available, reason, frames, samples, invalid, rewritten, unmatched, the summary in ms,
+  uncertaintyMs, comparable, notComparableReason — and never a number when unavailable.
+  Two reports rank only if both are comparable, share scenario, clip and source, and
+  carry an uncertainty of 1 ms or less. `sourcesDisagree` flags a forwarded stamp whose
+  p50 differs from the fingerprint's beyond the uncertainty; nothing is averaged, and
+  there is no merged best source. <!-- wb: prio=high size=M labels=report,measurement -->
+- [ ] **WB-41 — Sample window and retransmission beside delay**: what one-way delay is
+  sampled over, and what sits next to it (WB-1, D7). A new scenario key
+  `excludeFirstSeconds` (default 5) drops each viewer's first seconds, counted from its
+  own first RTP packet; `warmupSeconds` keeps its meaning. Beside one-way delay go the
+  NACKs each viewer sent (pion's stats interceptor, registered with the default
+  interceptors in `internal/rtc/rtc.go` and never read) and `lateCompletedFrames`,
+  frames whose gap was filled after their marker arrived; RTX stays unnegotiated. The
+  1% histogram stays; the Method line says "±0.5 % of value" and values print to 0.1 ms.
+  Open: whether the stats interceptor's NACK count means NACKs sent, and how recovered
+  packets relate to `tooLate` in `internal/rtpstats/rtpstats.go`.
+  <!-- wb: prio=med size=M labels=measurement,report -->
 
 ## v0.3.0 — The comparative report across four servers <!-- ms: phase=later -->
 
