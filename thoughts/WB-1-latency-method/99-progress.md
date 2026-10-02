@@ -17,7 +17,7 @@
 | S2 | ✅ done | S2/S3 session | `8bcee20` | WB-38 to WB-41 written on `wb-1/s2-s3`; slip in the "Ids first" grep fixed (D2) |
 | S3 | ✅ done | S2/S3 session | `b5fdc6c` | WB-2, WB-3, WB-4 rewritten, citing lines follow, on `wb-1/s2-s3` |
 | S4 | ✅ done | S4 session | `df16299` | `wb-1/s2-s3` merged at `e639f09`; README `:7`, the "Latency, and its limits" section and `:146` rewritten as § S4 Changes says |
-| S5 | ⬜ todo | — | — | human — the maintainer |
+| S5 | ✅ done | maintainer | — | human — approved in chat on the PR summary, 2026-10-02 |
 
 Legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸️ blocked · ❌ failed
 
@@ -119,4 +119,5 @@ artifact that needs correcting.
 
 ## Observations
 
+- S5 observed: 2026-10-02, Allan Nava: approved in chat ("ok continua") after a summary of PR #48 — what S1–S4 change, the breaking rename, WB-38..41 and the rewritten WB-2/3/4; reading the README section and the new items in full was not stated, so this is an approval of the summary
 Human observations the plan's steps close on (S5). One line each.
