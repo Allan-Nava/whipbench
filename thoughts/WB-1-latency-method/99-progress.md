@@ -13,9 +13,9 @@
 
 | Step | Status | Session | Commit | Note |
 |---|---|---|---|---|
-| S1 | ⏸️ blocked | S1 session | — | code complete, tests green; Verify 11 and 12 fail only on the guard-test text § S1 Tests prescribes — D1 open |
-| S2 | ⬜ todo | — | — | |
-| S3 | ⬜ todo | — | — | |
+| S1 | ✅ done | S1 session | `e0318e0` | code complete, tests green; Verify 11 and 12 scoped by D1 (resolved 2026-10-02), exit 0 |
+| S2 | ✅ done | S2/S3 session | `8bcee20` | WB-38 to WB-41 written on `wb-1/s2-s3`; slip in the "Ids first" grep fixed (D2) |
+| S3 | ✅ done | S2/S3 session | `b5fdc6c` | WB-2, WB-3, WB-4 rewritten, citing lines follow, on `wb-1/s2-s3` |
 | S4 | ⬜ todo | — | — | |
 | S5 | ⬜ todo | — | — | human — the maintainer |
 
@@ -25,16 +25,19 @@ Legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸️ blocked · ❌ failed
 
 ## Where I left off
 
-**Current step:** S1 (blocked on D1); S2/S3 run in parallel on `wb-1/s2-s3`
+**Current step:** S4 (S4 session, owner of this file)
 
 **Done so far:**
 - S1 committed on branch `wb-1/s1` (worktree `wb1-s1`, from `origin/main` `45554d9`; no code drift from `fe24f42`, only `04-plan.md` was added since): every row of `04-plan.md` § S1 Changes applied to the 15 files of its "Files touched", plus this file
 
+- D1 resolved (2026-10-02, Allan Nava, in chat): `04-plan.md` § S1 Verify 11 and 12 scoped, both exit 0; D2 slip fixed in `04-plan.md` § S2 "Ids first"
+- S2 (`8bcee20`) and S3 (`b5fdc6c`) done on `wb-1/s2-s3`, recorded from the S2/S3 session's report
+
 **Next concrete action:**
-- the maintainer decides D1 (accept the scoped Verify 11 and 12 below, or another fix to `04-plan.md` § S1 Verify); then S1 → `✅ done`, and the S4 session merges `wb-1/s2-s3` into `wb-1/s1` and runs S4
+- merge `wb-1/s2-s3` into `wb-1/s1` and run `04-plan.md` § S4
 
 **Modified but uncommitted files:**
-- `thoughts/WB-1-latency-method/99-progress.md` — the S1 commit SHA, written after the commit
+- none
 
 ---
 
@@ -62,7 +65,15 @@ artifact that needs correcting.
 - **Artifact to fix:** `04-plan.md` § S1 Verify, lines 11 and 12: scope out the guard lines.
 - **Re-enter:** none, because the intent is intact and only the check's scope is wrong.
 - **Landed steps:** S1 keep.
-- **Status:** open. The maintainer must approve the scoped commands before S1 is marked done.
+- **Status:** resolved 2026-10-02, Allan Nava, in chat: § S1 Verify line 11 now excludes `':!internal/report/report_test.go'` and line 12 excludes `':!internal/report/report_test.go' ':!internal/metrics/metrics_test.go'` in `04-plan.md`, because the guard tests § S1 Tests prescribes must contain the forbidden words. Both scoped lines re-run on `wb-1/s1`: `exit 0`, `exit 0`. S1 → `✅ done`.
+
+### D2 · S2 "Ids first" grep counts the format example (transcription slip, fixed)
+
+- **The plan said:** `04-plan.md:336`, `grep -oE '\*\*WB-[0-9]+ — ' BACKLOG.md | grep -oE '[0-9]+' | sort -n | tail -1` prints `37`.
+- **Reality is:** it prints `99`, because it matches the `WB-99` format example at `BACKLOG.md:15`. The highest real id is WB-37 (`BACKLOG.md:183`), so WB-38 to WB-41 stand (S2/S3 session report).
+- **What I did:** fixed the plan line as a transcription slip: `| grep -v '^99$'` added to the pipeline. It sits before `sort -n`, not after `tail -1`, because after `tail -1` it would drop the only line and print nothing. Re-run against `origin/main:BACKLOG.md`: prints `37`, exit 0.
+- **Re-enter:** none. **Landed steps:** S2 keep.
+- **Status:** fixed.
 
 ---
 
@@ -87,6 +98,9 @@ artifact that needs correcting.
 | extra `go test -race -count=1 ./...` | S1 | exit 0 |
 | extra `node scripts/leakcheck_test.mjs` | S1 | exit 0 |
 | extra `git diff --stat origin/main` | S1 | the 15 files of § S1 "Files touched" and nothing else (142+/112−); `99-progress.md` is new |
+| 11 and 12, scoped in `04-plan.md` (D1 resolved) | S4 session, on `wb-1/s1` before the merge | exit 0, exit 0 |
+| S2 Verify | S2/S3 session, after `8bcee20` | roadmap + `git diff --exit-code ROADMAP.md` exit 0 (41 items, 8 milestones); backlog + leakcheck exit 0; four new ids, placement (WB-38 v0.1.0, WB-39..41 v0.2.0) and content checks exit 0; diff BACKLOG.md +52, ROADMAP.md +7 −3 only |
+| S3 Verify | S2/S3 session, after `b5fdc6c` | roadmap exit 0 (41 items, 8 milestones); backlog + leakcheck exit 0; WB-2/WB-3/WB-4 content checks and citing-phrase checks exit 0; diff BACKLOG.md +44 −26, ROADMAP.md +5 −5 only; S2 Verify re-run after S3 all exit 0 |
 
 ---
 
