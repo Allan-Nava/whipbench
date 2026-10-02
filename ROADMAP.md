@@ -4,31 +4,31 @@
 
 > This page is **generated** from [BACKLOG.md](BACKLOG.md), the single source of truth for planned work. Regenerate it with `npm run roadmap` after editing the backlog — CI fails when the two disagree.
 
-**37 items · 7 shipped · 30 open · 8 milestones.**
+**41 items · 7 shipped · 34 open · 8 milestones.**
 
 ## At a glance
 
 | Milestone | Phase | Progress | Open | Shipped |
 |---|---|---|---|---|
 | **v0.1.0 — The latency method, and a first report that means something** | now | `#.........` 13% | 7 | 1 |
-| **v0.2.0 — Simulcast, layer switches and metrics** | next | `..........` 0% | 5 | 0 |
+| **v0.2.0 — Simulcast, layer switches and metrics** | next | `..........` 0% | 8 | 0 |
 | **v0.3.0 — The comparative report across four servers** | later | `..........` 0% | 4 | 0 |
 | **v0.4.0 — Load from many machines** | later | `..........` 0% | 3 | 0 |
 | **v0.5.0 — whipbench in CI** | later | `..........` 0% | 3 | 0 |
-| **v0.6.0 — What the viewer actually sees** | later | `..........` 0% | 3 | 0 |
+| **v0.6.0 — What the viewer actually sees** | later | `..........` 0% | 4 | 0 |
 | **v1.0.0 — A report format others can depend on** | later | `..........` 0% | 5 | 0 |
 | **v0.0.1 — The first binary** | shipped | `##########` 100% | 0 | 6 |
 
 ## v0.1.0 — The latency method, and a first report that means something
 
 - [ ] **WB-1** — Latency method: run QRSPI on it · high · L · research, measurement
-- [ ] **WB-2** — Visual timestamp for glass-to-glass · high · L · research, measurement
-- [ ] **WB-3** — Clock synchronisation between machines · high · M · research, measurement
-- [ ] **WB-4** — Header extensions, server by server · high · M · research, benchmark
+- [ ] **WB-3** — Clock exchange between publish and view · high · M · client, measurement
+- [ ] **WB-4** — What each server forwards: extensions, payload bytes, marker bit · high · M · research, benchmark
 - [ ] **WB-5** — Live run against MediaMTX with the decided method · high · M · benchmark
 - [ ] **WB-6** — Ethics of load-testing managed services · high · S · docs, research
 - [x] **WB-7** — Move the backlog tooling to backlogsync · low · S · project · `main`
 - [ ] **WB-8** — Ramp phase against the GOP · med · S · measurement
+- [ ] **WB-38** — One-way delay by frame fingerprint · high · L · measurement, client
 
 ## v0.2.0 — Simulcast, layer switches and metrics
 
@@ -37,6 +37,9 @@
 - [ ] **WB-17** — Metrics for long runs · med · M · report
 - [ ] **WB-18** — Audio · med · M · client
 - [ ] **WB-19** — STUN, TURN and trickle ICE · low · M · client
+- [ ] **WB-39** — abs-capture-time once per frame · med · M · measurement, client
+- [ ] **WB-40** — Topology, clock and comparability in the report · high · M · report, measurement
+- [ ] **WB-41** — Sample window and retransmission beside delay · med · M · measurement, report
 
 ## v0.3.0 — The comparative report across four servers
 
@@ -59,6 +62,7 @@
 
 ## v0.6.0 — What the viewer actually sees
 
+- [ ] **WB-2** — Keyframe capture-to-decode for VP8 · med · L · measurement, research
 - [ ] **WB-30** — Freezes and frame drops · high · M · measurement
 - [ ] **WB-31** — Picture quality through a transcoding server · med · L · measurement, research
 - [ ] **WB-32** — Impairment profiles · high · M · client, measurement
