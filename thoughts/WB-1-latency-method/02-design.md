@@ -233,7 +233,9 @@ For `BACKLOG.md`, no ids assigned; a later phase writes them.
 
 | Comment | From | Status | Resolution |
 |---|---|---|---|
-| | | open / resolved | |
+| D4 rests on two unverified facts: servers forward frame bytes unchanged, and the clip's frames are distinct | Allan Nava, 2026-10-02 | resolved | both hold for MediaMTX v1.21.1 and both clips (#42); the other WB-4 servers stay in More research needed |
+| For H.264, D4 must hash the VCL NAL units only — a server may add or repeat SPS/PPS | review, 2026-10-02 | resolved | that is how #42 matched 450/450; the Structure carries it as a constraint |
+| A frame later than the 4 s clip loop is ambiguous to D4 | review, 2026-10-02 | resolved | accepted as D4's stated limit; the report must say so |
 
 ---
 
@@ -242,8 +244,8 @@ For `BACKLOG.md`, no ids assigned; a later phase writes them.
 - [x] Design written
 - [x] Anchored to research facts (every claim has a path)
 - [x] Alternatives documented
-- [ ] Reviewed by the team (<date>, <who>, <how: read in full / summary / automated review>)
-- [ ] Comments resolved
-- [ ] Approved (<date>, <who>, <how: in writing / in chat / in review>)
+- [x] Reviewed by the team (2026-10-02, Allan Nava, summary)
+- [x] Comments resolved
+- [x] Approved (2026-10-02, Allan Nava, in chat: "ok procedi")
 
 > Next phase: **Structure**. It receives: this file only.
