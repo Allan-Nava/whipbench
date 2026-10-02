@@ -16,7 +16,7 @@
 | S1 | ✅ done | S1 session | `e0318e0` | code complete, tests green; Verify 11 and 12 scoped by D1 (resolved 2026-10-02), exit 0 |
 | S2 | ✅ done | S2/S3 session | `8bcee20` | WB-38 to WB-41 written on `wb-1/s2-s3`; slip in the "Ids first" grep fixed (D2) |
 | S3 | ✅ done | S2/S3 session | `b5fdc6c` | WB-2, WB-3, WB-4 rewritten, citing lines follow, on `wb-1/s2-s3` |
-| S4 | ⬜ todo | — | — | |
+| S4 | ✅ done | S4 session | `df16299` | `wb-1/s2-s3` merged at `e639f09`; README `:7`, the "Latency, and its limits" section and `:146` rewritten as § S4 Changes says |
 | S5 | ⬜ todo | — | — | human — the maintainer |
 
 Legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸️ blocked · ❌ failed
@@ -25,7 +25,7 @@ Legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸️ blocked · ❌ failed
 
 ## Where I left off
 
-**Current step:** S4 (S4 session, owner of this file)
+**Current step:** S5 (the maintainer); S1-S4 done, PR open, not merged
 
 **Done so far:**
 - S1 committed on branch `wb-1/s1` (worktree `wb1-s1`, from `origin/main` `45554d9`; no code drift from `fe24f42`, only `04-plan.md` was added since): every row of `04-plan.md` § S1 Changes applied to the 15 files of its "Files touched", plus this file
@@ -33,8 +33,10 @@ Legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸️ blocked · ❌ failed
 - D1 resolved (2026-10-02, Allan Nava, in chat): `04-plan.md` § S1 Verify 11 and 12 scoped, both exit 0; D2 slip fixed in `04-plan.md` § S2 "Ids first"
 - S2 (`8bcee20`) and S3 (`b5fdc6c`) done on `wb-1/s2-s3`, recorded from the S2/S3 session's report
 
+- S4: `wb-1/s2-s3` merged into `wb-1/s1` (`e639f09`), README commit `df16299`; S4 Verify and S1 Verify (scoped) all exit 0 on the merged branch; `wb-1/s1` pushed and opened as the one PR
+
 **Next concrete action:**
-- merge `wb-1/s2-s3` into `wb-1/s1` and run `04-plan.md` § S4
+- the maintainer reads the PR and appends the S5 line under `## Observations` (`04-plan.md` § S5), then the PR merges with `gh pr merge --squash`
 
 **Modified but uncommitted files:**
 - none
@@ -99,6 +101,8 @@ artifact that needs correcting.
 | extra `node scripts/leakcheck_test.mjs` | S1 | exit 0 |
 | extra `git diff --stat origin/main` | S1 | the 15 files of § S1 "Files touched" and nothing else (142+/112−); `99-progress.md` is new |
 | 11 and 12, scoped in `04-plan.md` (D1 resolved) | S4 session, on `wb-1/s1` before the merge | exit 0, exit 0 |
+| S4 Verify, the whole block (`npm ci` … `go test ./... && npm run backlog`) | S4 session, on `wb-1/s1` after `df16299` | check-repo `ok — repo invariants hold at 0.0.1`, leakcheck `nothing private in 72 tracked files, 27 commits` (no-denylist notice), site built (12 sections); every `exit` line exit 0 (6 of 6); `for` line printed nothing; backlog `41 items, 8 milestones` |
+| S1 Verify, the whole block with 11 and 12 scoped | S4 session, on merged `wb-1/s1` after `df16299` | every `exit` line exit 0 (12 of 12); `golangci-lint` `0 issues.`; `gofmt -w` changed nothing |
 | S2 Verify | S2/S3 session, after `8bcee20` | roadmap + `git diff --exit-code ROADMAP.md` exit 0 (41 items, 8 milestones); backlog + leakcheck exit 0; four new ids, placement (WB-38 v0.1.0, WB-39..41 v0.2.0) and content checks exit 0; diff BACKLOG.md +52, ROADMAP.md +7 −3 only |
 | S3 Verify | S2/S3 session, after `b5fdc6c` | roadmap exit 0 (41 items, 8 milestones); backlog + leakcheck exit 0; WB-2/WB-3/WB-4 content checks and citing-phrase checks exit 0; diff BACKLOG.md +44 −26, ROADMAP.md +5 −5 only; S2 Verify re-run after S3 all exit 0 |
 
@@ -109,6 +113,7 @@ artifact that needs correcting.
 | Session | Step | Peak context | Note |
 |---|---|---|---|
 | S1 session | S1 | about 6% | read only the plan's References, Minimum context and § S1 |
+| S4 session | D1, S2/S3 record, S4, landing | about 4% | read the plan's References, Minimum context, § S1 Verify, § S4, § S5 format, and the S2/S3 report |
 
 ---
 
