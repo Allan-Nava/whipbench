@@ -31,6 +31,7 @@ internal/version/        the version string reports carry
 testdata/                clip-vp8.ivf, clip-h264.h264 (made by scripts/make-clips.sh)
 examples/                scenario files for a local MediaMTX
 evals/                   dated live runs: a Markdown summary plus the raw reports
+docs/                    load-testing-etiquette.md: the rule live runs follow (WB-6)
 thoughts/                QRSPI artifacts (WB-1 starts with an empty Questions file)
 scripts/                 make-clips.sh, check-repo.sh, leakcheck.mjs (+ test)
 site/build.mjs           the Pages site, generated from README.md
@@ -98,7 +99,10 @@ Print the exit code of every test and check, and read the whole output — never
 run through `| tail`, which keeps the pipe's status, not the command's.
 
 Against a real server, locally only: see the README's quick start, and record a run
-worth keeping in `evals/YYYY-MM-DD-<what>.md` with the server version and host.
+worth keeping in `evals/YYYY-MM-DD-<what>.md` with the server version and host. A
+managed service only on an own account within its terms, or with written permission,
+and its evals file adds the plan, the region and that permission
+([docs/load-testing-etiquette.md](docs/load-testing-etiquette.md), WB-6).
 
 ## Publishing hygiene
 

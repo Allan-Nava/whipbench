@@ -8,7 +8,7 @@ echo "$V" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || fail "VERSION must be x.y.z, 
 grep -q "^## \[Unreleased\]" CHANGELOG.md || fail "CHANGELOG.md needs an [Unreleased] section"
 grep -q "^## \[$V\]" CHANGELOG.md || fail "CHANGELOG.md has no section for $V"
 for f in README.md CLAUDE.md AGENTS.md CONTRIBUTING.md LICENSE BACKLOG.md ROADMAP.md CHANGELOG.md \
-  scripts/make-clips.sh testdata/clip-vp8.ivf testdata/clip-h264.h264; do
+  docs/load-testing-etiquette.md scripts/make-clips.sh testdata/clip-vp8.ivf testdata/clip-h264.h264; do
   [ -f "$f" ] || fail "$f is missing"
 done
 # The honest limits the README must state, in so many words.
@@ -16,6 +16,9 @@ grep -q "not glass-to-glass" README.md || fail "README.md must say packet transi
 grep -q "packet transit: unavailable" README.md || fail "README.md must say a stripped extension gives 'packet transit: unavailable'"
 grep -q "No-verdict rule" README.md || fail "README.md must state the no-verdict rule"
 grep -q "Hosts only" README.md || fail "README.md must state that reports record hosts only"
+# The load-testing rule (WB-6), and where its longer form lives.
+grep -q "with the written permission of whoever runs it" README.md || fail "README.md must state the load-testing rule"
+grep -q "docs/load-testing-etiquette.md" README.md || fail "README.md must link docs/load-testing-etiquette.md"
 # The threshold the README states is the one the code applies.
 grep -q 'NoVerdictThreshold = 0.10' internal/report/report.go || fail "the no-verdict threshold is no longer 10% — update README.md with it"
 grep -q "more than 10% of the viewers" README.md || fail "README.md must state the 10% threshold"

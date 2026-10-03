@@ -133,7 +133,9 @@ Stated plainly, because a benchmark that hides them is worse than none:
 
 ## Load-testing etiquette
 
-Run whipbench against servers you operate, or against a managed service only on your own account and within its terms, or with the written permission of whoever runs it. A load test against someone else's service is indistinguishable from an attack on it. The live numbers in this repository come from local servers only. The longer note is [WB-6](BACKLOG.md).
+Run whipbench against servers you operate, or against a managed service only on your own account and within its terms, or with the written permission of whoever runs it. A load test against someone else's service is indistinguishable from an attack on it. The live numbers in this repository come from local servers only.
+
+A run against a managed service records, beside the server version and host, the plan the account is on, the region, and the permission it ran under — own account and which terms, or who gave written permission and for what. No managed-service number is published without them. The longer form, with what to check before such a run, is [docs/load-testing-etiquette.md](docs/load-testing-etiquette.md) ([WB-6](BACKLOG.md)). It is not legal advice and does not interpret any provider's terms.
 
 ## Development
 

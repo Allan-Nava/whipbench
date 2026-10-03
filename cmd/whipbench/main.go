@@ -53,9 +53,10 @@ Usage:
 
 Run "whipbench <command> -h" for the flags of a command.
 
-Only point whipbench at servers you run, or at accounts whose owner has agreed
-to a load test. The report records endpoint hosts only, never paths, query
-strings or tokens.
+Only point whipbench at servers you run, at a managed service on your own
+account and within its terms, or with the written permission of whoever runs
+it (docs/load-testing-etiquette.md). The report records endpoint hosts only,
+never paths, query strings or tokens.
 `
 
 func main() {

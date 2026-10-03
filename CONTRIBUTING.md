@@ -33,7 +33,9 @@ A number in a report is a definition first and code second.
 Only against servers you run, or a managed service on your own account within its
 terms, or with written permission. A run worth keeping goes in `evals/` as a dated
 Markdown file with the server's version and host — never a path, a key, or anyone's
-hostname — plus the raw reports beside it.
+hostname — plus the raw reports beside it. A run against a managed service also records
+the plan, the region and the permission it ran under, as
+[docs/load-testing-etiquette.md](docs/load-testing-etiquette.md) lists them (WB-6).
 
 ## Backlog, roadmap, issues
 
