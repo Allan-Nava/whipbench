@@ -22,7 +22,7 @@ internal/publisher/      WHIP publisher: paced loop, send-time stamp per packet
 internal/viewer/         WHEP viewer: join times, stats, packet transit or why not
 internal/rtpstats/       loss, jitter, keyframes, stalls — pure arithmetic (RFC 3550)
 internal/stats/          nearest-rank summaries and the mergeable delay histogram
-internal/scenario/       the scenario file, defaults, validation, the ramp
+internal/scenario/       the scenario file, defaults, validation, the ramp and its seeded offsets (WB-8)
 internal/runner/         one run: publisher, warmup, ramp, hold, timeline, metrics server
 internal/report/         JSON + Markdown, hosts only, the no-verdict rule
 internal/metrics/        live counters and the hand-written Prometheus exposition

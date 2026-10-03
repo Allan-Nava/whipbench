@@ -4,13 +4,13 @@
 
 > This page is **generated** from [BACKLOG.md](BACKLOG.md), the single source of truth for planned work. Regenerate it with `npm run roadmap` after editing the backlog — CI fails when the two disagree.
 
-**41 items · 8 shipped · 33 open · 8 milestones.**
+**41 items · 9 shipped · 32 open · 8 milestones.**
 
 ## At a glance
 
 | Milestone | Phase | Progress | Open | Shipped |
 |---|---|---|---|---|
-| **v0.1.0 — The latency method, and a first report that means something** | now | `###.......` 25% | 6 | 2 |
+| **v0.1.0 — The latency method, and a first report that means something** | now | `####......` 38% | 5 | 3 |
 | **v0.2.0 — Simulcast, layer switches and metrics** | next | `..........` 0% | 8 | 0 |
 | **v0.3.0 — The comparative report across four servers** | later | `..........` 0% | 4 | 0 |
 | **v0.4.0 — Load from many machines** | later | `..........` 0% | 3 | 0 |
@@ -27,7 +27,7 @@
 - [ ] **WB-5** — Live run against MediaMTX with the decided method · high · M · benchmark
 - [ ] **WB-6** — Ethics of load-testing managed services · high · S · docs, research
 - [x] **WB-7** — Move the backlog tooling to backlogsync · low · S · project · `main`
-- [ ] **WB-8** — Ramp phase against the GOP · med · S · measurement
+- [x] **WB-8** — Ramp phase against the GOP · med · S · measurement · `main`
 - [ ] **WB-38** — One-way delay by frame fingerprint · high · L · measurement, client
 
 ## v0.2.0 — Simulcast, layer switches and metrics

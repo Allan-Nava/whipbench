@@ -40,6 +40,14 @@ type Scenario struct {
 	RampSeconds float64 `json:"rampSeconds"`
 	// HoldSeconds is how long every viewer stays connected after the ramp ends.
 	HoldSeconds float64 `json:"holdSeconds"`
+	// RampOffsetSeed, when present, delays each viewer's start on the ramp by its
+	// own offset, drawn uniformly from [0, RampOffsetMaxSeconds) by SplitMix64
+	// seeded with it (WB-8). A ramp whose step is a multiple of the GOP otherwise
+	// brings every viewer in at the same point of it. Absent: the plain ramp.
+	RampOffsetSeed *int64 `json:"rampOffsetSeed,omitempty"`
+	// RampOffsetMaxSeconds bounds the offset; default 1, the clip's GOP. Only
+	// valid with RampOffsetSeed.
+	RampOffsetMaxSeconds float64 `json:"rampOffsetMaxSeconds,omitempty"`
 	// WarmupSeconds is the time between the publisher connecting and the first
 	// viewer, so the server has a stream to offer; default 2.
 	WarmupSeconds float64 `json:"warmupSeconds,omitempty"`
@@ -66,7 +74,11 @@ const (
 	DefaultWarmup      = 2.0
 	DefaultJoinTimeout = 10.0
 	DefaultStallMs     = 500.0
-	MaxViewers         = 10000
+	// DefaultRampOffsetMax is the clip's GOP, 30 frames at 30 fps.
+	DefaultRampOffsetMax = 1.0
+	MaxViewers           = 10000
+	// MaxRampOffsetSeconds caps rampOffsetMaxSeconds at an hour, far beyond any GOP.
+	MaxRampOffsetSeconds = 3600.0
 )
 
 // Load reads and validates a scenario file.
@@ -105,6 +117,9 @@ func (s *Scenario) applyDefaults() {
 	}
 	if s.StallMs == 0 {
 		s.StallMs = DefaultStallMs
+	}
+	if s.RampOffsetSeed != nil && s.RampOffsetMaxSeconds == 0 {
+		s.RampOffsetMaxSeconds = DefaultRampOffsetMax
 	}
 }
 
@@ -150,6 +165,10 @@ func (s Scenario) Validate() error {
 		return errors.New("scenario: joinTimeoutSeconds must be positive")
 	case s.StallMs <= 0:
 		return errors.New("scenario: stallMs must be positive")
+	case s.RampOffsetSeed == nil && s.RampOffsetMaxSeconds != 0:
+		return errors.New("scenario: rampOffsetMaxSeconds needs rampOffsetSeed")
+	case s.RampOffsetSeed != nil && !(s.RampOffsetMaxSeconds > 0 && s.RampOffsetMaxSeconds <= MaxRampOffsetSeconds):
+		return fmt.Errorf("scenario: rampOffsetMaxSeconds must be above 0 and at most %g", MaxRampOffsetSeconds)
 	}
 	return nil
 }
@@ -157,7 +176,13 @@ func (s Scenario) Validate() error {
 func secs(v float64) time.Duration { return time.Duration(v * float64(time.Second)) }
 
 // Ramp, Hold, Warmup, JoinTimeout and Stall are the durations of the scenario.
-func (s Scenario) Ramp() time.Duration        { return secs(s.RampSeconds) }
+func (s Scenario) Ramp() time.Duration { return secs(s.RampSeconds) }
+func (s Scenario) RampOffsetMax() time.Duration {
+	if s.RampOffsetSeed == nil {
+		return 0
+	}
+	return secs(s.RampOffsetMaxSeconds)
+}
 func (s Scenario) Hold() time.Duration        { return secs(s.HoldSeconds) }
 func (s Scenario) Warmup() time.Duration      { return secs(s.WarmupSeconds) }
 func (s Scenario) JoinTimeout() time.Duration { return secs(s.JoinTimeoutSeconds) }
@@ -179,9 +204,52 @@ func Starts(n int, ramp time.Duration) []time.Duration {
 	return out
 }
 
-// Duration is the whole run after the warmup: every viewer starts within the ramp,
-// and all stop together HoldSeconds after it.
-func (s Scenario) Duration() time.Duration { return s.Ramp() + s.Hold() }
+// RampOffsets returns n offsets drawn uniformly from [0, bound), offset i from the
+// i-th output of SplitMix64 seeded with seed. The generator is written out below,
+// not taken from math/rand, so a seed recorded in a report gives the same offsets
+// on any machine and any Go version; offset i does not depend on n.
+func RampOffsets(n int, seed int64, bound time.Duration) []time.Duration {
+	out := make([]time.Duration, n)
+	if bound <= 0 {
+		return out
+	}
+	state := uint64(seed) //nolint:gosec // the seed's bits, reinterpreted
+	for i := range out {
+		// The top 53 bits as a fraction in [0, 1), so the scaled result stays below bound.
+		frac := float64(splitmix64(&state)>>11) / (1 << 53)
+		out[i] = time.Duration(frac * float64(bound))
+	}
+	return out
+}
+
+// splitmix64 is Steele, Lea and Flood's SplitMix64 (2014), as in Vigna's reference
+// C: it advances state by the golden-ratio increment and mixes it.
+func splitmix64(state *uint64) uint64 {
+	*state += 0x9e3779b97f4a7c15
+	z := *state
+	z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9
+	z = (z ^ (z >> 27)) * 0x94d049bb133111eb
+	return z ^ (z >> 31)
+}
+
+// Schedule returns when each viewer starts, relative to the end of the warmup, and
+// the seeded offset included in that start: the plain ramp of Starts, plus
+// RampOffsets when RampOffsetSeed is set. Without the seed, offsets is nil.
+func (s Scenario) Schedule() (starts, offsets []time.Duration) {
+	starts = Starts(s.Viewers, s.Ramp())
+	if s.RampOffsetSeed == nil {
+		return starts, nil
+	}
+	offsets = RampOffsets(s.Viewers, *s.RampOffsetSeed, s.RampOffsetMax())
+	for i := range starts {
+		starts[i] += offsets[i]
+	}
+	return starts, offsets
+}
+
+// Duration is the whole run after the warmup: every viewer starts within the ramp
+// and its offset bound, and all stop together HoldSeconds after that.
+func (s Scenario) Duration() time.Duration { return s.Ramp() + s.RampOffsetMax() + s.Hold() }
 
 // Redacted is the scenario as a report records it: endpoints reduced to their
 // host, the metrics address kept (it is the client's own), the bearer variable's

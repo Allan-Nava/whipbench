@@ -1,6 +1,7 @@
 package report
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -158,5 +159,63 @@ func TestReportKeepsOnlyTheHost(t *testing.T) {
 	}
 	if r.Server.WHIPHost != "ingest.example.test:8443" || r.Scenario.WHEP != "edge.example.test" {
 		t.Fatalf("server %+v scenario %q", r.Server, r.Scenario.WHEP)
+	}
+}
+
+// WB-8: a run with a ramp offset records the seed, the bound and every viewer's
+// offset, so the same starts can be scheduled again.
+func TestReportCarriesTheRampOffsets(t *testing.T) {
+	s := sc(3)
+	seed := int64(7)
+	s.RampOffsetSeed, s.RampOffsetMaxSeconds = &seed, 1
+	vs := viewers(3, 0)
+	offsets := scenario.RampOffsets(3, seed, time.Second)
+	for i := range vs {
+		vs[i].RampOffsetMs = f(float64(offsets[i]) / float64(time.Millisecond))
+		vs[i].StartOffsetMs = *vs[i].RampOffsetMs
+	}
+	r := build(s, vs)
+	b, err := r.JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := string(b)
+	for _, want := range []string{`"rampOffsetSeed": 7`, `"rampOffsetMaxSeconds": 1`} {
+		if !strings.Contains(js, want) {
+			t.Errorf("json lacks %s", want)
+		}
+	}
+	if n := strings.Count(js, `"rampOffsetMs": `); n != 3 {
+		t.Errorf("want one rampOffsetMs per viewer, got %d", n)
+	}
+	var back Report
+	if err := json.Unmarshal(b, &back); err != nil {
+		t.Fatal(err)
+	}
+	for i, v := range back.Viewers {
+		if v.RampOffsetMs == nil || time.Duration(*v.RampOffsetMs*float64(time.Millisecond)) != offsets[i] {
+			t.Errorf("viewer %d: offset %v, want %v", i, v.RampOffsetMs, offsets[i])
+		}
+	}
+	md := r.Markdown()
+	if !strings.Contains(md, "ramp offset seed 7, up to 1s") {
+		t.Errorf("markdown does not state the seed:\n%s", md)
+	}
+	if !strings.Contains(md, RampOffsetMethod) || len(r.Method) != len(Method)+1 {
+		t.Errorf("method lines %v", r.Method)
+	}
+}
+
+func TestReportWithoutTheRampOffsetIsUnchanged(t *testing.T) {
+	r := build(sc(3), viewers(3, 0))
+	b, err := r.JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), "rampOffset") || strings.Contains(r.Markdown(), "ramp offset") {
+		t.Errorf("a run without the key mentions a ramp offset:\n%s", b)
+	}
+	if len(r.Method) != len(Method) {
+		t.Errorf("method lines %v", r.Method)
 	}
 }

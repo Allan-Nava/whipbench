@@ -101,8 +101,13 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 	}
 
 	// The viewers.
-	starts := scenario.Starts(sc.Viewers, sc.Ramp())
-	logf("starting %d viewers over %gs, holding %gs", sc.Viewers, sc.RampSeconds, sc.HoldSeconds)
+	starts, offsets := sc.Schedule()
+	if offsets != nil {
+		logf("starting %d viewers over %gs, each offset by up to %gs (seed %d), holding %gs",
+			sc.Viewers, sc.RampSeconds, sc.RampOffsetMaxSeconds, *sc.RampOffsetSeed, sc.HoldSeconds)
+	} else {
+		logf("starting %d viewers over %gs, holding %gs", sc.Viewers, sc.RampSeconds, sc.HoldSeconds)
+	}
 	vctx, vcancel := context.WithTimeout(ctx, sc.Duration())
 	defer vcancel()
 	t0 := time.Now()
@@ -113,17 +118,23 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
+			var offset *float64 // recorded even for a viewer that never started
+			if offsets != nil {
+				o := ms(offsets[i])
+				offset = &o
+			}
 			select {
 			case <-time.After(time.Until(t0.Add(starts[i]))):
 			case <-vctx.Done():
-				results[i] = viewer.Result{ID: i, ErrorKind: "not_started", Error: "the run ended before this viewer's start time"}
+				results[i] = viewer.Result{ID: i, RampOffsetMs: offset, ErrorKind: "not_started", Error: "the run ended before this viewer's start time"}
 				return
 			}
 			r := viewer.Run(vctx, i, viewer.Config{
 				WHEP: sc.WHEP, Bearer: opt.Bearer, RTC: rtcOpt, HTTP: opt.HTTP,
 				JoinTimeout: sc.JoinTimeout(), Stall: sc.Stall(), Live: live,
 			})
-			r.StartOffsetMs = float64(starts[i]) / float64(time.Millisecond)
+			r.StartOffsetMs = ms(starts[i])
+			r.RampOffsetMs = offset
 			results[i] = r
 		}(i)
 	}
@@ -142,6 +153,8 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 	logf("%s", rep.Aggregate.Verdict)
 	return rep, nil
 }
+
+func ms(d time.Duration) float64 { return float64(d) / float64(time.Millisecond) }
 
 func serveMetrics(ln net.Listener, addr string, live *metrics.Live, logf func(string, ...any)) (func(), error) {
 	if ln == nil && addr == "" {
