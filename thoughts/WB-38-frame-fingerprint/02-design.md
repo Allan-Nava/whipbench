@@ -237,7 +237,8 @@ Facts the design assumes but `01-research.md` did not verify:
 
 | Comment | From | Status | Resolution |
 |---|---|---|---|
-| | | open / resolved | |
+| D4 replaces the samplebuilder the ticket names; D6 moves Q4's retransmission count to WB-41; D3 measures the loop in frames, not Q1's clip duration | Allan Nava, 2026-10-03 | resolved | all three accepted as written |
+| D2 and D4 rest on two unverified facts: a slip never skips a frame index; a fresh depacketiser recovers the VCL bytes | review, 2026-10-03 | resolved | both verified 2026-10-03 (#61): publisher.go:227-233; 240/240 H.264 and 120/120 VP8 frames |
 
 ---
 
@@ -246,8 +247,8 @@ Facts the design assumes but `01-research.md` did not verify:
 - [x] Design written
 - [x] Anchored to research facts (every claim has a path)
 - [x] Alternatives documented
-- [ ] Reviewed by the team (<date>, <who>, <how: read in full / summary / automated review>)
-- [ ] Comments resolved
-- [ ] Approved (<date>, <who>, <how: in writing / in chat / in review>)
+- [x] Reviewed by the team (2026-10-03, Allan Nava, summary)
+- [x] Comments resolved
+- [x] Approved (2026-10-03, Allan Nava, in chat: "ok approvo")
 
 > Next phase: **Structure**. It receives: this file only.
