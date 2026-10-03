@@ -209,10 +209,15 @@ guards change what they protect (D8). `view` reports it unavailable.
 
 Facts the design assumes but `01-research.md` did not verify:
 
-- [ ] D2: a schedule slip never skips or repeats a frame index k (`publisher.go:229-233`, "no catch-up").
+- [x] D2: a schedule slip never skips or repeats a frame index k — verified 2026-10-03 by reading
+  `internal/publisher/publisher.go:227-233`: `k` advances by one per iteration and a slip moves only
+  `origin`; the one edge is a frame cut short when the connection closes, and its k is never reused.
 - [ ] D1: H.264 VCL NAL types are exactly 1-5 (Table 7-1 was unreachable; types from pion comments).
-- [ ] D4: a fresh `H264Packet` on one complete frame, then `SplitAnnexB`, gives the VCL bytes
-  `SplitAnnexB` gives on `Frame.Data`, trailing zeros included (the eval's options are unrecorded).
+- [x] D4: a fresh `H264Packet` on one complete frame, then `SplitAnnexB`, gives the VCL bytes
+  `SplitAnnexB` gives on `Frame.Data` — verified 2026-10-03 offline: the embedded H.264 clip through one
+  long-lived `H264Payloader` (MTU 1200, as the publisher) and a fresh depacketiser per frame, two
+  loops: 240/240 frames' VCL equal, 8 STAP-A packets harmless; VP8 120/120 frames equal. The clip's NAL
+  types are 1, 5, 6, 7, 8 — its VCL units (1, 5) sit inside 1-5. Implement should keep this as a test.
 - [ ] D4: whether 1 s outlasts pion's NACK retries and responder buffer, and whether `DropEvery`
   yields retransmissions or only holes (research blind spot) — the lossy test depends on it.
 - [ ] D3: whether RTP timestamp intervals survive servers other than MediaMTX (WB-4).
