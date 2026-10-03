@@ -179,6 +179,9 @@ func TestTableErrors(t *testing.T) {
 	if _, err := NewTable(&clip.Clip{Codec: "vp8", Ticks: 3000}); err == nil {
 		t.Error("NewTable(no frames): no error")
 	}
+	if _, err := NewTable(&clip.Clip{Codec: "vp8", Frames: []clip.Frame{{Data: []byte{1}}}}); err == nil || err.Error() != "fingerprint: the clip has no frame duration (Ticks is 0)" {
+		t.Errorf("NewTable(Ticks 0) = %v; want the frame-duration error", err)
+	}
 	bad := &clip.Clip{Codec: "h264", Ticks: 3000, Frames: []clip.Frame{{Data: []byte{0, 0, 1, 0x67, 0xAA}}}}
 	_, err := NewTable(bad)
 	if err == nil {

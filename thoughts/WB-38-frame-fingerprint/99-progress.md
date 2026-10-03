@@ -16,9 +16,9 @@
 | S1 | ✅ done | S1 session | `55ad054 (#68)` | fingerprint + clip table, isVCL predicate; 8 plan tests, gate green |
 | S2 | ✅ done | S2 session | `494f759 (#69, rebased on S1)` | send log ring + matcher (D3 aliasing); 17 plan tests, gate green after rebase; discovery: Matcher needs ticks > 0 |
 | S3 | ✅ done | S3 session | `32bfcf7 (#70)` | reassembler + 14 tests, not split; state bounded (max seen 261, closed 91, pending 5); after the marker→timestamp switch a frame ends on the next later-timestamp packet whatever its markers (plan 2.6(c) wording, its expected value followed); discovery: a duplicate > 2·Window late reopens a frame |
-| S4 | ⬜ todo | — | — | offline clip round trip; after S1, S3 |
+| S4 | ✅ done | S4 session | `93ab064 (#73)` | offline clip round trip: H.264 240/240 with 9 STAP-A, VP8 240/240, 0 incomplete, 0 rejected |
 | S5 | ✅ done | S5 session | `6ca4c4b (#71)` | report blocks, Markdown, stdout, guards; discoveries: joined viewer without a fingerprint block counts as "had none" (revisit with WB-39), FingerprintDelay fallback sets an empty ViewersByFrameEnd, frameEnds helper |
-| S6 | ⬜ todo | — | — | wire into `run`; after S1, S2, S3, S5; may split S6a/S6b |
+| S6 | ✅ done | S6 session | `e76f622 (#74)` | wired into run: publisher send log, runner table and log, viewer reassembly and match outside the lock; not split; 5 plan tests green; deviation D1 (no Ticks == 0 guard) resolved by the owner, see Deviations |
 | S7 | ⬜ todo | — | — | markerless + lossy relays; records the `DropEvery:` observation |
 | S8 | ⬜ todo | — | — | docs, CHANGELOG, backlog; last |
 | H1 | ⬜ todo | — | — | maintainer: VCL types vs H.264 Table 7-1 |
@@ -29,7 +29,7 @@ Legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸️ blocked · ❌ failed
 
 ## Where I left off
 
-**Current step:** S4 ‖ S6 (second wave). First wave merged 2026-10-03: S1 #68, S2 #69 (rebased on S1, gate re-run green), S3 #70, S5 #71.
+**Current step:** S7, then S8. Second wave merged 2026-10-03: S4 #73, S6 #74. First wave merged 2026-10-03: S1 #68, S2 #69 (rebased on S1, gate re-run green), S3 #70, S5 #71.
 
 **Done so far:**
 - <what has been written, with paths>
@@ -62,15 +62,15 @@ go to a follow-up or a replanning round.
 Points where the plan was wrong or incomplete. Every line here signals an upstream
 artifact that needs correcting.
 
-### D<n> · <title>
+### D1 · Nothing guards a clip whose `Ticks` is 0 (reported by S6)
 
-- **The plan said:** <...>
-- **Reality is:** <...> (`path:line`)
-- **What I did:** stopped / deviated with approval / <...>
-- **Artifact to fix:** <`04-plan.md` § Sn, or the upstream artifact>
-- **Re-enter:** none / Structure / Design / Research / Questions — see `recovery.md`
-- **Landed steps:** <per landed step: keep / adapt / revert (`<sha>`)>
-- **Status:** <open / resolved> — <corrected artifact § entry, commit>
+- **The plan said:** S6 calls `fingerprint.NewMatcher(log, frames.Ticks())`; neither § S1's `NewTable` nor § S6 checks `Ticks`.
+- **Reality is:** `Matcher.Match` divides by `ticks` (`internal/fingerprint/match.go`); every clip the program loads passes `clip.validate()`, which rejects 0 (`internal/clip/clip.go:94`), but a hand-built `clip.Clip` in `runner.Options.Clip` would not.
+- **What I did:** S6 stopped short of a guard, as the rules say; the merging session added one after S6 merged.
+- **Artifact to fix:** `04-plan.md` § S1 — an Implement note now records the guard.
+- **Re-enter:** none.
+- **Landed steps:** S1 adapt (`NewTable` returns "the clip has no frame duration (Ticks is 0)", tested in `TestTableErrors`); S6 keep.
+- **Status:** resolved 2026-10-03 — this PR.
 
 ---
 

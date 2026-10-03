@@ -221,6 +221,8 @@ embedded clip with `clip.Load(codec, bytes)` first.
 
 ---
 
+> **Implement note (2026-10-03, D1 from S6):** `NewTable` also returns `fingerprint: the clip has no frame duration (Ticks is 0)` when `c.Ticks == 0`, tested in `TestTableErrors`; added by the merging session after S6 found the matcher divides by `Ticks`.
+
 ## S2 · Send log and match with loop aliasing
 
 ### Files touched
