@@ -13,8 +13,15 @@
 
 | Step | Status | Session | Commit | Note |
 |---|---|---|---|---|
-| <S1> | ⬜ todo | — | — | |
-| <S2> | ⬜ todo | — | — | |
+| S1 | ⬜ todo | — | — | fingerprint + clip table, `isVCL` predicate |
+| S2 | ⬜ todo | — | — | send log ring + matcher (D3 aliasing) |
+| S3 | ⬜ todo | — | — | reassembler; may split S3a/S3b |
+| S4 | ⬜ todo | — | — | offline clip round trip; after S1, S3 |
+| S5 | ⬜ todo | — | — | report blocks, Markdown, stdout, guards |
+| S6 | ⬜ todo | — | — | wire into `run`; after S1, S2, S3, S5; may split S6a/S6b |
+| S7 | ⬜ todo | — | — | markerless + lossy relays; records the `DropEvery:` observation |
+| S8 | ⬜ todo | — | — | docs, CHANGELOG, backlog; last |
+| H1 | ⬜ todo | — | — | maintainer: VCL types vs H.264 Table 7-1 |
 
 Legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸️ blocked · ❌ failed
 
@@ -22,7 +29,7 @@ Legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸️ blocked · ❌ failed
 
 ## Where I left off
 
-**Current step:** <S1>
+**Current step:** S1 ‖ S2 ‖ S3 ‖ S5 (first wave, in parallel; the merging session owns this file and copies each step's row in from its PR)
 
 **Done so far:**
 - <what has been written, with paths>
