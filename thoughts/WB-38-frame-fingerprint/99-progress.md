@@ -19,7 +19,7 @@
 | S4 | ✅ done | S4 session | `93ab064 (#73)` | offline clip round trip: H.264 240/240 with 9 STAP-A, VP8 240/240, 0 incomplete, 0 rejected |
 | S5 | ✅ done | S5 session | `6ca4c4b (#71)` | report blocks, Markdown, stdout, guards; discoveries: joined viewer without a fingerprint block counts as "had none" (revisit with WB-39), FingerprintDelay fallback sets an empty ViewersByFrameEnd, frameEnds helper |
 | S6 | ✅ done | S6 session | `e76f622 (#74)` | wired into run: publisher send log, runner table and log, viewer reassembly and match outside the lock; not split; 5 plan tests green; deviation D1 (no Ticks == 0 guard) resolved by the owner, see Deviations |
-| S7 | ⬜ todo | — | — | markerless + lossy relays; records the `DropEvery:` observation |
+| S7 | ✅ done | S7 session | this PR (`wb-38/s7`) | markerless + lossy relays; `ClearMarker` relay option, `TestMarkerlessRelay` (103-118 samples, frame end `timestamp`), `TestLossThroughALossyRelay` extended; `DropEvery:` observation is Discovery 6 (holes); line refs in Discoveries 6-7 updated to `main` |
 | S8 | ⬜ todo | — | — | docs, CHANGELOG, backlog; last |
 | H1 | ⬜ todo | — | — | maintainer: VCL types vs H.264 Table 7-1 |
 
@@ -54,6 +54,8 @@ go to a follow-up or a replanning round.
 | 3 | After the marker→timestamp switch, plan behaviour 2.6(c) read literally keeps a frame with a marker from closing; S3 followed the plan's expected value instead (a frame ends on the next later-timestamp packet) | `04-plan.md` § S3 2.6(c) | replan wording if the step is ever re-run |
 | 4 | A joined viewer without a fingerprint block counts as "had none" with a "no valid sample" reason (S5) | `internal/report/report.go` | revisit with WB-39's second source |
 | 5 | The plan's shared gate omits `./scripts/check-repo.sh`, which CI runs (S2) | `04-plan.md` § Minimum context | every step ran it anyway |
+| 6 | `DropEvery: 2026-10-03 holes — lost 4-5 of ≈4-5 dropped per viewer (VP8, 2 viewers, three runs: lost 5 of ≈5 and 4 of ≈4 each time); whether 1 s outlasts pion's NACK retries is not observable on this relay` | `internal/testserver/testserver.go:214-216` | ignore (D4's open item stays open for WB-41) |
+| 7 | `A markerless stream never joins: rtpstats completes a keyframe on its marker only, so through ClearMarker every viewer ends with errorKind run_ended (internal/viewer/viewer.go:298-299) and the run has no verdict` | `internal/rtpstats/rtpstats.go:248-252` | follow-up |
 
 ---
 
