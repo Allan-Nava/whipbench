@@ -302,12 +302,7 @@ func execute(ctx context.Context, command string, sc scenario.Scenario, c *clip.
 	a := rep.Aggregate
 	fmt.Fprintf(stdout, "%s\n", a.Verdict)
 	if a.Valid {
-		fmt.Fprintf(stdout, "join (first keyframe) p50 %.0f ms, p95 %.0f ms; loss %.3f%%; ", a.FirstKeyframeMs.P50, a.FirstKeyframeMs.P95, a.LossTotal)
-		if a.PacketTransit.Available && a.PacketTransit.Ms != nil {
-			fmt.Fprintf(stdout, "packet transit p50 %.1f ms, p99 %.1f ms\n", a.PacketTransit.Ms.P50, a.PacketTransit.Ms.P99)
-		} else {
-			fmt.Fprintf(stdout, "packet transit unavailable: %s\n", a.PacketTransit.Reason)
-		}
+		fmt.Fprint(stdout, headline(a))
 	}
 	for _, p := range paths {
 		fmt.Fprintln(stdout, "wrote", p)
@@ -316,6 +311,24 @@ func execute(ctx context.Context, command string, sc scenario.Scenario, c *clip.
 		return exitNoVerdict
 	}
 	return exitOK
+}
+
+// headline is the two lines a valid run prints after its verdict: one-way delay first
+// (the figure servers are ranked by), then join, loss and packet transit.
+func headline(a report.Aggregate) string {
+	var b strings.Builder
+	if d := a.FingerprintDelay(); d.Available && d.Ms != nil {
+		fmt.Fprintf(&b, "one-way delay (fingerprint) p50 %.1f ms, p99 %.1f ms\n", d.Ms.P50, d.Ms.P99)
+	} else {
+		fmt.Fprintf(&b, "one-way delay unavailable: %s\n", d.Reason)
+	}
+	fmt.Fprintf(&b, "join (first keyframe) p50 %.0f ms, p95 %.0f ms; loss %.3f%%; ", a.FirstKeyframeMs.P50, a.FirstKeyframeMs.P95, a.LossTotal)
+	if a.PacketTransit.Available && a.PacketTransit.Ms != nil {
+		fmt.Fprintf(&b, "packet transit p50 %.1f ms, p99 %.1f ms\n", a.PacketTransit.Ms.P50, a.PacketTransit.Ms.P99)
+	} else {
+		fmt.Fprintf(&b, "packet transit unavailable: %s\n", a.PacketTransit.Reason)
+	}
+	return b.String()
 }
 
 var unsafeName = regexp.MustCompile(`[^a-zA-Z0-9._-]+`)

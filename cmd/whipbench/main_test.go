@@ -10,7 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Allan-Nava/whipbench/internal/report"
 	"github.com/Allan-Nava/whipbench/internal/rtc"
+	"github.com/Allan-Nava/whipbench/internal/stats"
 	"github.com/Allan-Nava/whipbench/internal/testserver"
 )
 
@@ -130,5 +132,26 @@ func TestRampOffsetFlags(t *testing.T) {
 	var out, errb bytes.Buffer
 	if code := run([]string{"run", scen, "--ramp-offset-max", "1s"}, &out, &errb); code != exitUsage || !strings.Contains(errb.String(), "needs rampOffsetSeed") {
 		t.Errorf("run --ramp-offset-max without a seed: exit %d, %q", code, errb.String())
+	}
+}
+
+// The headline leads with one-way delay, the figure servers are ranked by, and keeps the
+// join, loss and packet transit line as it was.
+func TestHeadline(t *testing.T) {
+	a := report.Aggregate{
+		OneWayDelay:   []report.OneWayDelay{{Source: "fingerprint", Available: true, Ms: &stats.Summary{P50: 12.3, P99: 45.6}}},
+		PacketTransit: report.PacketTransit{Reason: "not negotiated"},
+	}
+	want := "one-way delay (fingerprint) p50 12.3 ms, p99 45.6 ms\njoin (first keyframe) p50 0 ms, p95 0 ms; loss 0.000%; packet transit unavailable: not negotiated\n"
+	if got := headline(a); got != want {
+		t.Errorf("available:\ngot  %q\nwant %q", got, want)
+	}
+	a.OneWayDelay = []report.OneWayDelay{{Source: "fingerprint", Reason: report.NoSendLogReason}}
+	got := headline(a)
+	if !strings.HasPrefix(got, "one-way delay unavailable: no send log") {
+		t.Errorf("unavailable: %q", got)
+	}
+	if i, j := strings.Index(got, "one-way delay"), strings.Index(got, "packet transit"); j < i {
+		t.Errorf("packet transit before one-way delay: %q", got)
 	}
 }
