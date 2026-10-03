@@ -1192,7 +1192,7 @@ Every step is additive; nothing migrates and nothing persists outside a report f
 - [x] Every verification command is copy-pasteable
 - [x] **Zero-context test:** an agent reading only this file can execute it
 - [x] Rollback plan present
-- [ ] Approved (<date>, <who>, <how: in writing / in chat / in review>)
+- [x] Approved (2026-10-03, Allan Nava, in chat: "approvo")
 
 > Next phase: **Implement**. It receives: this file + `99-progress.md`.
 > One session per step.
