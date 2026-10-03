@@ -4,14 +4,14 @@
 
 > This page is **generated** from [BACKLOG.md](BACKLOG.md), the single source of truth for planned work. Regenerate it with `npm run roadmap` after editing the backlog — CI fails when the two disagree.
 
-**41 items · 10 shipped · 31 open · 8 milestones.**
+**44 items · 11 shipped · 33 open · 8 milestones.**
 
 ## At a glance
 
 | Milestone | Phase | Progress | Open | Shipped |
 |---|---|---|---|---|
-| **v0.1.0 — The latency method, and a first report that means something** | now | `#####.....` 50% | 4 | 4 |
-| **v0.2.0 — Simulcast, layer switches and metrics** | next | `..........` 0% | 8 | 0 |
+| **v0.1.0 — The latency method, and a first report that means something** | now | `######....` 63% | 3 | 5 |
+| **v0.2.0 — Simulcast, layer switches and metrics** | next | `..........` 0% | 11 | 0 |
 | **v0.3.0 — The comparative report across four servers** | later | `..........` 0% | 4 | 0 |
 | **v0.4.0 — Load from many machines** | later | `..........` 0% | 3 | 0 |
 | **v0.5.0 — whipbench in CI** | later | `..........` 0% | 3 | 0 |
@@ -28,7 +28,7 @@
 - [x] **WB-6** — Ethics of load-testing managed services · high · S · docs, research · `main`
 - [x] **WB-7** — Move the backlog tooling to backlogsync · low · S · project · `main`
 - [x] **WB-8** — Ramp phase against the GOP · med · S · measurement · `main`
-- [ ] **WB-38** — One-way delay by frame fingerprint · high · L · measurement, client
+- [x] **WB-38** — One-way delay by frame fingerprint · high · L · measurement, client · `main`
 
 ## v0.2.0 — Simulcast, layer switches and metrics
 
@@ -40,6 +40,9 @@
 - [ ] **WB-39** — abs-capture-time once per frame · med · M · measurement, client
 - [ ] **WB-40** — Topology, clock and comparability in the report · high · M · report, measurement
 - [ ] **WB-41** — Sample window and retransmission beside delay · med · M · measurement, report
+- [ ] **WB-42** — Live one-way delay series with a source label · med · S · report
+- [ ] **WB-43** — Frame rate for Annex-B clips from the clip · low · S · client
+- [ ] **WB-44** — One-way delay split by keyframe and delta frame · low · M · measurement, report
 
 ## v0.3.0 — The comparative report across four servers
 
