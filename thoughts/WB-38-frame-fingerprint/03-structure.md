@@ -280,6 +280,6 @@ sequential: S7 shares `runner_test.go` with S6, S8 closes the ticket.
 - [x] Every step has a verification command
 - [x] Every step leaves the repo working
 - [x] Dependencies and parallelism mapped
-- [ ] Approved (<date>, <who>, <how: in writing / in chat / in review>)
+- [x] Approved (2026-10-03, Allan Nava, in chat: "approva") — H1 stays the maintainer's
 
 > Next phase: **Plan**. It receives: this file + `02-design.md`.
