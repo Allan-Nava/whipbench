@@ -72,7 +72,7 @@ artifact that needs correcting.
 - **Artifact to fix:** `04-plan.md` § S1 — an Implement note now records the guard.
 - **Re-enter:** none.
 - **Landed steps:** S1 adapt (`NewTable` returns "the clip has no frame duration (Ticks is 0)", tested in `TestTableErrors`); S6 keep.
-- **Status:** resolved 2026-10-03 — this PR.
+- **Status:** resolved 2026-10-03 — #75.
 
 ---
 
