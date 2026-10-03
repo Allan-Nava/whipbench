@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Allan-Nava/whipbench/internal/stats"
+	"github.com/Allan-Nava/whipbench/internal/viewer"
 )
 
 // Markdown renders the report for a person. An invalid run prints its verdict in
@@ -42,6 +43,7 @@ func (r *Report) Markdown() string {
 		a.Viewers, a.Joined, a.Failed, trim(a.FailedPercent), a.Dropped)
 
 	if a.Valid {
+		b := a.FingerprintDelay()
 		w("## Aggregate\n\n")
 		w("| metric | n | p50 | p95 | p99 | min | max |\n|---|---:|---:|---:|---:|---:|---:|\n")
 		row := func(name string, sm stats.Summary, unit string) {
@@ -55,6 +57,9 @@ func (r *Report) Markdown() string {
 			}
 			w("| %s | %d | %s | %s | %s | %s | %s |\n", name, sm.N, f(sm.P50), f(sm.P95), f(sm.P99), f(sm.Min), f(sm.Max))
 		}
+		if b.Available && b.Ms != nil {
+			row("one-way delay (fingerprint, per frame)", *b.Ms, " ms")
+		}
 		row("join: first keyframe", a.FirstKeyframeMs, " ms")
 		row("join: first RTP packet", a.FirstRTPMs, " ms")
 		row("signalling (POST → answer)", a.SignallingMs, " ms")
@@ -65,6 +70,19 @@ func (r *Report) Markdown() string {
 		row("jitter per viewer", a.JitterMs, " ms")
 		row("keyframe interval per viewer", a.KeyframeS, " s")
 		w("\n")
+		if !b.Available {
+			w("**One-way delay: unavailable** — %s.\n\n", esc(b.Reason))
+		} else {
+			loop := ""
+			if b.LoopMinMs != nil {
+				loop = fmt.Sprintf(", sent in %.0f ms at the fastest", *b.LoopMinMs)
+			}
+			w("One-way delay (fingerprint): %d samples from %d complete frames on %d viewers (frame end: %s); %d incomplete, %d unmatched, %d invalid; %d duplicate clip frames never sampled; loop %d frames%s.\n\n",
+				b.Samples, b.CompleteFrames, b.Viewers, frameEnds(b.ViewersByFrameEnd), b.IncompleteFrames, b.UnmatchedFrames, b.Invalid, b.DuplicateFrames, b.LoopFrames, loop)
+			if b.Reason != "" {
+				w("One-way delay %s.\n\n", esc(b.Reason))
+			}
+		}
 		if !a.PacketTransit.Available {
 			w("**Packet transit: unavailable** — %s.\n\n", esc(a.PacketTransit.Reason))
 		} else if a.PacketTransit.Reason != "" {
@@ -102,12 +120,22 @@ func (r *Report) Markdown() string {
 	}
 
 	w("## Viewers\n\n")
-	w("| id | start | joined | first RTP | first keyframe | received | lost | loss | jitter | keyframe | stalls | transit p50 | transit p99 | error |\n")
-	w("|---:|---:|:---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|\n")
+	w("| id | start | joined | first RTP | first keyframe | received | lost | loss | jitter | keyframe | stalls | delay p50 | delay p99 | transit p50 | transit p99 | error |\n")
+	w("|---:|---:|:---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|\n")
 	for _, v := range r.Viewers {
 		joined := "no"
 		if v.Joined {
 			joined = "yes"
+		}
+		d50, d99 := "n/a", "n/a"
+		for _, d := range v.OneWayDelay {
+			if d.Source != viewer.SourceFingerprint {
+				continue
+			}
+			if d.Available && d.Ms != nil {
+				d50, d99 = fmt.Sprintf("%.1f ms", d.Ms.P50), fmt.Sprintf("%.1f ms", d.Ms.P99)
+			}
+			break
 		}
 		pt50, pt99 := "n/a", "n/a"
 		if v.PacketTransit.Available && v.PacketTransit.Ms != nil {
@@ -117,9 +145,9 @@ func (r *Report) Markdown() string {
 		if v.RTP.Keyframes > 1 {
 			kf = fmt.Sprintf("%.2f s", v.RTP.KeyframeIntervalMeanS)
 		}
-		w("| %d | %.0f ms | %s | %s | %s | %d | %d | %.2f%% | %.2f ms | %s | %d | %s | %s | %s |\n",
+		w("| %d | %.0f ms | %s | %s | %s | %d | %d | %.2f%% | %.2f ms | %s | %d | %s | %s | %s | %s | %s |\n",
 			v.ID, v.StartOffsetMs, joined, msOrDash(v.FirstRTPMs), msOrDash(v.FirstKeyframeMs),
-			v.RTP.Received, v.RTP.Lost, v.RTP.LossPercent, v.RTP.JitterMs, kf, v.RTP.Stalls, pt50, pt99, esc(v.ErrorKind))
+			v.RTP.Received, v.RTP.Lost, v.RTP.LossPercent, v.RTP.JitterMs, kf, v.RTP.Stalls, d50, d99, pt50, pt99, esc(v.ErrorKind))
 	}
 	w("\n## Method\n\n")
 	for _, m := range r.Method {
@@ -138,4 +166,18 @@ func msOrDash(v *float64) string {
 // esc keeps a value from breaking a table row.
 func esc(s string) string {
 	return strings.NewReplacer("|", `\|`, "\n", " ").Replace(s)
+}
+
+// frameEnds renders the viewers by frame end in key order, "marker 4, timestamp 1".
+func frameEnds(m map[string]int) string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, len(keys))
+	for i, k := range keys {
+		parts[i] = fmt.Sprintf("%s %d", k, m[k])
+	}
+	return strings.Join(parts, ", ")
 }

@@ -94,6 +94,7 @@ type Result struct {
 	FirstKeyframeMs *float64 `json:"firstKeyframeMs,omitempty"`
 
 	RTP           rtpstats.Summary `json:"rtp"`
+	OneWayDelay   []OneWayDelay    `json:"oneWayDelay"`
 	PacketTransit PacketTransit    `json:"packetTransit"`
 
 	// DroppedAfterJoin: the connection failed after the viewer had joined.

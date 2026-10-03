@@ -39,7 +39,7 @@ func TestExposition(t *testing.T) {
 		}
 	}
 	if strings.Contains(body, "one_way_delay") {
-		t.Errorf("the 0.0.1 series must be gone:\n%s", body)
+		t.Errorf("no one_way_delay series until it carries a source label (fingerprint now, stamp with WB-39): an unlabelled series would change meaning when the second source lands:\n%s", body)
 	}
 	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/plain; version=0.0.4") {
 		t.Errorf("content type %q", ct)
