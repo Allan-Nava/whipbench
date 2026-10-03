@@ -93,6 +93,10 @@ func NewTable(c *clip.Clip) (*Table, error) {
 	if c == nil || len(c.Frames) == 0 {
 		return nil, errors.New("fingerprint: the clip has no frames")
 	}
+	// A matcher divides by Ticks (match.go); clip.Load rejects 0 already, a hand-built clip may not.
+	if c.Ticks == 0 {
+		return nil, errors.New("fingerprint: the clip has no frame duration (Ticks is 0)")
+	}
 	fps := make([]uint64, len(c.Frames))
 	seen := make(map[uint64]int, len(c.Frames))
 	for i, f := range c.Frames {
