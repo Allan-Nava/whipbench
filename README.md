@@ -98,6 +98,8 @@ The publisher connects, the warmup passes, viewer *i* of *n* starts at *i*·ramp
 
 The ramp is deterministic. When its step is a multiple of the clip's 1 s GOP, every viewer arrives at the same point of the GOP and the join times cluster (ten viewers over ten seconds all wait about one second); a step that is not, such as 50 viewers over 10 s, samples the GOP evenly.
 
+To sample the GOP evenly whatever the step, set `"rampOffsetSeed"` to any integer ([WB-8](BACKLOG.md)). Each viewer's start is then delayed by its own offset, drawn uniformly from [0, `rampOffsetMaxSeconds`) — 1 s by default, the clip's GOP — and the hold begins once that window has passed too, so the run lasts `rampSeconds` + `rampOffsetMaxSeconds` + `holdSeconds` after the warmup. The offsets come from SplitMix64, written out in `internal/scenario` rather than taken from Go's `math/rand`, so the same seed gives the same offsets on any machine and Go version. The report records the seed and the bound in its scenario and each viewer's offset as `rampOffsetMs`; its `startOffsetMs` is the ramp slot plus that offset. On the command line, `--ramp-offset-seed N` and `--ramp-offset-max 1s` set the two keys for `view`, and override the scenario's for `run`. It is off by default: without the seed the ramp is exactly the deterministic one above, and the report has neither key.
+
 ## Reports
 
 Each run writes JSON (schema `whipbench.report/v0`) and a Markdown rendering of it. A report records the whipbench version, the scenario, the publisher's figures, every viewer's figures, the aggregates, error counts by kind, a per-second timeline and the definitions above.
@@ -131,7 +133,9 @@ Stated plainly, because a benchmark that hides them is worse than none:
 
 ## Load-testing etiquette
 
-Run whipbench against servers you operate, or against a managed service only on your own account and within its terms, or with the written permission of whoever runs it. A load test against someone else's service is indistinguishable from an attack on it. The live numbers in this repository come from local servers only. The longer note is [WB-6](BACKLOG.md).
+Run whipbench against servers you operate, or against a managed service only on your own account and within its terms, or with the written permission of whoever runs it. A load test against someone else's service is indistinguishable from an attack on it. The live numbers in this repository come from local servers only.
+
+A run against a managed service records, beside the server version and host, the plan the account is on, the region, and the permission it ran under — own account and which terms, or who gave written permission and for what. No managed-service number is published without them. The longer form, with what to check before such a run, is [docs/load-testing-etiquette.md](docs/load-testing-etiquette.md) ([WB-6](BACKLOG.md)). It is not legal advice and does not interpret any provider's terms.
 
 ## Development
 

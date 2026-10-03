@@ -67,11 +67,15 @@ method and WB-5 is in `evals/`.**
   repeated with WB-1's method, one-way delay by frame fingerprint (WB-38), published in
   `evals/` as the first report that carries a one-way delay figure or says, with
   evidence, why it cannot. <!-- wb: prio=high size=M labels=benchmark -->
-- [ ] **WB-6 — Ethics of load-testing managed services**: write down the rule the README
+- [x] **WB-6 — Ethics of load-testing managed services**: write down the rule the README
   states in one line — only servers you run, a managed service only on your own account
   and within its terms, or with written permission — and what a run against a managed
   service must record (plan, region, the permission). No managed-service numbers are
-  published before this exists. <!-- wb: prio=high size=S labels=docs,research -->
+  published before this exists. Done 2026-10-03: `docs/load-testing-etiquette.md` — the
+  rule, what to check before a managed run, and the fields its evals file records
+  (service, plan, region, permission, window); linked from the README's Load-testing
+  etiquette section, the usage text, CONTRIBUTING and CLAUDE.md; `check-repo.sh` holds
+  the README to the rule. <!-- wb: prio=high size=S labels=docs,research ver=main -->
 - [x] **WB-7 — Move the backlog tooling to backlogsync**: `scripts/backlog.mjs` and
   `.github/workflows/backlog-issues.yml` are copied from a sibling repository for now.
   Replace both with `Allan-Nava/backlogsync` once that tool reaches 0.1.0, keeping the
@@ -79,11 +83,16 @@ method and WB-5 is in `evals/`.**
   job, `backlog-issues.yml` and `release-drift.yml` on backlogsync `@backlogsync--v0.1.0`,
   `npm run backlog` / `npm run roadmap` on `npx backlogsync@0.1.0`; the old script, its test
   and fixtures removed. <!-- wb: prio=low size=S labels=project ver=main -->
-- [ ] **WB-8 — Ramp phase against the GOP**: the ramp is deterministic, so when its step
+- [x] **WB-8 — Ramp phase against the GOP**: the ramp is deterministic, so when its step
   is a multiple of the 1 s GOP every viewer arrives at the same point of it and join
   times cluster (the 10-viewer MediaMTX run: p50 1003 ms, min 1001 ms). Add an optional
   seeded offset per viewer, recorded in the report, so join time samples the GOP evenly
-  whatever the ramp. <!-- wb: prio=med size=S labels=measurement -->
+  whatever the ramp. Done 2026-10-03: `rampOffsetSeed` and `rampOffsetMaxSeconds`
+  (default 1 s) in the scenario, `--ramp-offset-seed` / `--ramp-offset-max` on `view` and
+  `run`; offsets uniform in [0, bound) from SplitMix64, written out in
+  `internal/scenario` and pinned by its reference vectors; the report records the seed,
+  the bound and each viewer's `rampOffsetMs`. Off by default.
+  <!-- wb: prio=med size=S labels=measurement ver=main -->
 - [ ] **WB-38 — One-way delay by frame fingerprint**: the headline delay figure, and the
   one WB-5 publishes (WB-1, D2 and D4 in `thoughts/WB-1-latency-method/02-design.md`). In
   `run` the publisher logs t0 = `time.Now()` just before each frame's first `WriteRTP`,

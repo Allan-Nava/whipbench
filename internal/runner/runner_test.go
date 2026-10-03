@@ -112,6 +112,36 @@ func TestRoundTripVP8(t *testing.T) {
 	if len(rep.Timeline) == 0 {
 		t.Error("no timeline")
 	}
+	// No rampOffsetSeed: the plain ramp, as before WB-8.
+	starts := scenario.Starts(4, time.Second)
+	for _, v := range rep.Viewers {
+		if v.RampOffsetMs != nil || v.StartOffsetMs != float64(starts[v.ID])/float64(time.Millisecond) {
+			t.Errorf("viewer %d: start %v ms, offset %v, want the plain ramp", v.ID, v.StartOffsetMs, v.RampOffsetMs)
+		}
+	}
+}
+
+// WB-8: a seeded offset moves each viewer's start, and the report says by how much.
+func TestRampOffsetsReachTheReport(t *testing.T) {
+	t.Parallel()
+	sc := base("vp8", 3)
+	seed := int64(11)
+	sc.RampOffsetSeed, sc.RampOffsetMaxSeconds = &seed, 0.5
+	rep := run(t, testserver.Options{}, sc, "")
+	if !rep.Aggregate.Valid || rep.Aggregate.Joined != 3 {
+		t.Fatalf("aggregate: %+v\nerrors: %v", rep.Aggregate, rep.Errors)
+	}
+	if rep.Scenario.RampOffsetSeed == nil || *rep.Scenario.RampOffsetSeed != 11 || rep.Scenario.RampOffsetMaxSeconds != 0.5 {
+		t.Fatalf("scenario in the report: %+v", rep.Scenario)
+	}
+	starts := scenario.Starts(3, time.Second)
+	offsets := scenario.RampOffsets(3, 11, 500*time.Millisecond)
+	ms := func(d time.Duration) float64 { return float64(d) / float64(time.Millisecond) }
+	for _, v := range rep.Viewers {
+		if v.RampOffsetMs == nil || *v.RampOffsetMs != ms(offsets[v.ID]) || v.StartOffsetMs != ms(starts[v.ID]+offsets[v.ID]) {
+			t.Errorf("viewer %d: start %v ms, offset %v, want %v + %v", v.ID, v.StartOffsetMs, v.RampOffsetMs, starts[v.ID], offsets[v.ID])
+		}
+	}
 }
 
 func TestRoundTripH264(t *testing.T) {

@@ -28,8 +28,12 @@ func (r *Report) Markdown() string {
 	}
 	w("| WHEP host | `%s` |\n", esc(r.Server.WHEPHost))
 	s := r.Scenario
-	w("| scenario | %d viewers, ramp %gs, hold %gs, warmup %gs, join timeout %gs, codec %s |\n",
-		s.Viewers, s.RampSeconds, s.HoldSeconds, s.WarmupSeconds, s.JoinTimeoutSeconds, s.Codec)
+	offset := ""
+	if s.RampOffsetSeed != nil {
+		offset = fmt.Sprintf(", ramp offset seed %d, up to %gs", *s.RampOffsetSeed, s.RampOffsetMaxSeconds)
+	}
+	w("| scenario | %d viewers, ramp %gs%s, hold %gs, warmup %gs, join timeout %gs, codec %s |\n",
+		s.Viewers, s.RampSeconds, offset, s.HoldSeconds, s.WarmupSeconds, s.JoinTimeoutSeconds, s.Codec)
 	w("| client | %s/%s, %d CPUs, %s |\n\n", r.Client.OS, r.Client.Arch, r.Client.CPUs, r.Client.Go)
 
 	a := r.Aggregate

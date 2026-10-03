@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"math"
 	"runtime"
+	"slices"
 	"sort"
 	"time"
 
@@ -144,6 +145,9 @@ func Build(in Input) *Report {
 	}
 	if in.Scenario.WHIP != "" {
 		r.Server.WHIPHost = whip.Host(in.Scenario.WHIP)
+	}
+	if in.Scenario.RampOffsetSeed != nil {
+		r.Method = append(slices.Clone(Method), RampOffsetMethod)
 	}
 	if in.Publisher != nil {
 		p := *in.Publisher
@@ -291,3 +295,6 @@ var Method = []string{
 	"Percentiles are nearest-rank. Join, loss and jitter summaries take one value per joined viewer; packet transit pools every valid sample of every viewer that has it, in a histogram with 1% buckets.",
 	"No-verdict rule: when more than 10% of the viewers failed to join, the aggregate is not valid and must not be quoted.",
 }
+
+// RampOffsetMethod joins Method in a report whose scenario sets rampOffsetSeed.
+const RampOffsetMethod = "Viewer starts: viewer i of n starts i·ramp/n after the warmup, plus a seeded offset drawn uniformly from [0, rampOffsetMaxSeconds) — the i-th output of SplitMix64 seeded with rampOffsetSeed — so that join time samples the GOP evenly whatever the ramp step. Each viewer's offset is recorded as rampOffsetMs, and the same seed gives the same offsets."

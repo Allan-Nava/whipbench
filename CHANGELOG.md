@@ -5,6 +5,21 @@ versions follow [SemVer](https://semver.org/). Items reference their `WB-n` back
 
 ## [Unreleased]
 
+### Added
+- A seeded per-viewer offset on the ramp (WB-8): `rampOffsetSeed` and
+  `rampOffsetMaxSeconds` in the scenario, `--ramp-offset-seed` and `--ramp-offset-max` on
+  `view` and `run`. Each viewer's start moves by an offset drawn uniformly from
+  [0, bound) — 1 s by default, the clip's GOP — by SplitMix64 seeded with the key, so join
+  time samples the GOP evenly whatever the ramp step. The report records the seed, the
+  bound and every viewer's `rampOffsetMs`, plus a Method line; the same seed gives the
+  same offsets. Off by default: without the key the ramp and the report are unchanged.
+- `docs/load-testing-etiquette.md` (WB-6): the rule the README states in one line —
+  servers you run, a managed service only on your own account within its terms, or
+  written permission — and what a run against a managed service records in `evals/`:
+  service, plan, region, the permission and the run's window. The README section, the
+  `whipbench` usage text, CONTRIBUTING and CLAUDE.md point at it, and `check-repo.sh`
+  holds the README to the rule.
+
 ### Changed
 - The 0.0.1 delay figure is renamed **packet transit** (WB-1) — per packet, arrival
   minus the abs-capture-time send stamp — so no metric is called "latency" and "one-way

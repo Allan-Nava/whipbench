@@ -4,7 +4,8 @@ The guidance for coding agents in this repository lives in [CLAUDE.md](CLAUDE.md
 whipbench is, the six rules the code encodes (definitions first, never a fake number,
 the no-verdict rule, hosts only, delay is not glass-to-glass, pure Go), the dated
 facts the code depends on, how to verify a change, and the publishing hygiene. Read it
-before editing.
+before editing, and [docs/load-testing-etiquette.md](docs/load-testing-etiquette.md)
+before any live run against a server you do not operate.
 
 The short version of the checks:
 

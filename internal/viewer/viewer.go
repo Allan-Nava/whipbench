@@ -78,10 +78,15 @@ func (l *PacketTransit) Histogram() *stats.Histogram {
 
 // Result is one viewer's report.
 type Result struct {
-	ID            int     `json:"id"`
+	ID int `json:"id"`
+	// StartOffsetMs is when the viewer started, after the warmup: its slot on the
+	// ramp plus RampOffsetMs.
 	StartOffsetMs float64 `json:"startOffsetMs"`
-	Joined        bool    `json:"joined"`
-	Codec         string  `json:"codec,omitempty"`
+	// RampOffsetMs is the seeded offset included in StartOffsetMs (WB-8); absent
+	// when the scenario has no rampOffsetSeed.
+	RampOffsetMs *float64 `json:"rampOffsetMs,omitempty"`
+	Joined       bool     `json:"joined"`
+	Codec        string   `json:"codec,omitempty"`
 
 	SignallingMs    *float64 `json:"signallingMs,omitempty"`
 	ICEConnectedMs  *float64 `json:"iceConnectedMs,omitempty"`

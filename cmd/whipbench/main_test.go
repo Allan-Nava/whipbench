@@ -62,7 +62,7 @@ func TestRunWritesReports(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out, errb bytes.Buffer
-	code := run([]string{"run", scen, "--out", filepath.Join(dir, "out")}, &out, &errb)
+	code := run([]string{"run", scen, "--out", filepath.Join(dir, "out"), "--ramp-offset-seed", "7", "--ramp-offset-max", "200ms"}, &out, &errb)
 	if code != exitOK {
 		t.Fatalf("exit %d\nstdout %s\nstderr %s", code, out.String(), errb.String())
 	}
@@ -80,10 +80,23 @@ func TestRunWritesReports(t *testing.T) {
 		if strings.HasSuffix(f, ".json") {
 			var r struct {
 				Aggregate struct{ Valid bool } `json:"aggregate"`
-				Scenario  struct{ BearerEnv string }
+				Scenario  struct {
+					BearerEnv            string
+					RampOffsetSeed       *int64
+					RampOffsetMaxSeconds float64
+				}
+				Viewers []struct{ RampOffsetMs *float64 }
 			}
 			if err := json.Unmarshal(b, &r); err != nil || !r.Aggregate.Valid || r.Scenario.BearerEnv != "WHIPBENCH_TEST_TOKEN" {
 				t.Errorf("json report: %v %+v", err, r)
+			}
+			if r.Scenario.RampOffsetSeed == nil || *r.Scenario.RampOffsetSeed != 7 || r.Scenario.RampOffsetMaxSeconds != 0.2 {
+				t.Errorf("the flags did not reach the report's scenario: %+v", r.Scenario)
+			}
+			for i, v := range r.Viewers {
+				if v.RampOffsetMs == nil || *v.RampOffsetMs < 0 || *v.RampOffsetMs >= 200 {
+					t.Errorf("viewer %d: ramp offset %v", i, v.RampOffsetMs)
+				}
 			}
 		}
 	}
@@ -91,5 +104,31 @@ func TestRunWritesReports(t *testing.T) {
 		if strings.Contains(out.String()+errb.String(), bad) {
 			t.Errorf("console output contains %q", bad)
 		}
+	}
+}
+
+// WB-8's flags are checked like the scenario keys they set.
+func TestRampOffsetFlags(t *testing.T) {
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"view", "--whep", "http://127.0.0.1:1/whep", "--ramp-offset-max", "1s"}, "needs rampOffsetSeed"},
+		{[]string{"view", "--whep", "http://127.0.0.1:1/whep", "--ramp-offset-seed", "7", "--ramp-offset-max", "-1s"}, "rampOffsetMaxSeconds"},
+		{[]string{"view", "--whep", "http://127.0.0.1:1/whep", "--ramp-offset-seed", "seven"}, "ramp-offset-seed"},
+	} {
+		var out, errb bytes.Buffer
+		if code := run(tc.args, &out, &errb); code != exitUsage || !strings.Contains(errb.String(), tc.want) {
+			t.Errorf("%v: exit %d, stderr %q, want exit %d mentioning %q", tc.args, code, errb.String(), exitUsage, tc.want)
+		}
+	}
+	dir := t.TempDir()
+	scen := filepath.Join(dir, "s.json")
+	if err := os.WriteFile(scen, []byte(`{"whep":"http://127.0.0.1:1/whep","viewers":1,"holdSeconds":1}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var out, errb bytes.Buffer
+	if code := run([]string{"run", scen, "--ramp-offset-max", "1s"}, &out, &errb); code != exitUsage || !strings.Contains(errb.String(), "needs rampOffsetSeed") {
+		t.Errorf("run --ramp-offset-max without a seed: exit %d, %q", code, errb.String())
 	}
 }

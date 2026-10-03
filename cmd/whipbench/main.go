@@ -3,8 +3,8 @@
 // across servers.
 //
 //	whipbench publish --whip URL [--codec vp8|h264] [--duration 0]
-//	whipbench view    --whep URL [-n 10] [--ramp 0s] [--duration 30s] [--out DIR]
-//	whipbench run     scenario.json [--out DIR] [--metrics ADDR]
+//	whipbench view    --whep URL [-n 10] [--ramp 0s] [--ramp-offset-seed N] [--duration 30s] [--out DIR]
+//	whipbench run     scenario.json [--out DIR] [--metrics ADDR] [--ramp-offset-seed N]
 //	whipbench version
 //
 // Exit status: 0 a valid run, 1 an error, 2 a usage error, 3 a run with no verdict.
@@ -20,6 +20,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -52,9 +53,10 @@ Usage:
 
 Run "whipbench <command> -h" for the flags of a command.
 
-Only point whipbench at servers you run, or at accounts whose owner has agreed
-to a load test. The report records endpoint hosts only, never paths, query
-strings or tokens.
+Only point whipbench at servers you run, at a managed service on your own
+account and within its terms, or with the written permission of whoever runs
+it (docs/load-testing-etiquette.md). The report records endpoint hosts only,
+never paths, query strings or tokens.
 `
 
 func main() {
@@ -119,6 +121,30 @@ func bearerFrom(env string) (string, error) {
 		return "", fmt.Errorf("--bearer-env %s: the variable is empty or unset", env)
 	}
 	return v, nil
+}
+
+// rampOffsetFlags adds --ramp-offset-seed and --ramp-offset-max (WB-8) and returns
+// a function that applies whichever of them were given to sc, so `run` can let
+// them override a scenario file the way --metrics does.
+func rampOffsetFlags(fs *flag.FlagSet) func(sc *scenario.Scenario) {
+	var seed *int64
+	fs.Func("ramp-offset-seed", "offset each viewer's start by a seeded random amount below --ramp-offset-max; the report records the seed and every offset", func(v string) error {
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return errors.New("want an integer")
+		}
+		seed = &n
+		return nil
+	})
+	bound := fs.Duration("ramp-offset-max", 0, "bound of the seeded start offset; needs --ramp-offset-seed (default 1s, the clip's GOP)")
+	return func(sc *scenario.Scenario) {
+		if seed != nil {
+			sc.RampOffsetSeed = seed
+		}
+		if *bound != 0 {
+			sc.RampOffsetMaxSeconds = bound.Seconds()
+		}
+	}
 }
 
 func loadClip(codec, path string) (*clip.Clip, error) {
@@ -205,11 +231,13 @@ func cmdView(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&sc.Metrics, "metrics", "", "serve Prometheus metrics on this address during the run, e.g. 127.0.0.1:9464")
 	fs.BoolVar(&sc.IncludeLoopback, "include-loopback", false, "add loopback ICE candidates (a server in a local container)")
 	fs.BoolVar(&sc.LoopbackOnly, "loopback-only", false, "gather ICE candidates on loopback only (a server on this machine)")
+	applyOffset := rampOffsetFlags(fs)
 	out := fs.String("out", ".", "directory for the JSON and Markdown report")
 	if _, err := parse(fs, args); err != nil {
 		return exitUsage
 	}
 	sc.RampSeconds, sc.HoldSeconds, sc.JoinTimeoutSeconds = ramp.Seconds(), hold.Seconds(), join.Seconds()
+	applyOffset(&sc)
 	sc.Normalise()
 	if err := sc.Validate(); err != nil {
 		fmt.Fprintln(stderr, "whipbench view:", err)
@@ -222,6 +250,7 @@ func cmdRun(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	fs := newFlags("run", stderr)
 	out := fs.String("out", ".", "directory for the JSON and Markdown report")
 	metricsAddr := fs.String("metrics", "", "serve Prometheus metrics on this address (overrides the scenario)")
+	applyOffset := rampOffsetFlags(fs) // overrides the scenario's rampOffset keys
 	pos, err := parse(fs, args)
 	if err != nil {
 		return exitUsage
@@ -237,6 +266,12 @@ func cmdRun(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	}
 	if *metricsAddr != "" {
 		sc.Metrics = *metricsAddr
+	}
+	applyOffset(&sc)
+	sc.Normalise()
+	if err := sc.Validate(); err != nil {
+		fmt.Fprintln(stderr, "whipbench run:", err)
+		return exitUsage
 	}
 	var c *clip.Clip
 	if sc.WHIP != "" {
