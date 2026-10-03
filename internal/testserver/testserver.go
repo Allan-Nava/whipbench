@@ -8,7 +8,8 @@
 // — abs-capture-time — from the publisher's id to each viewer's, and drops the rest
 // (they belong to the publisher leg's transport). Options make it behave like the
 // servers a benchmark has to survive: one that strips the extension, one that
-// refuses viewers beyond a limit, one that drops packets.
+// refuses viewers beyond a limit, one that drops packets, one that clears the
+// marker.
 //
 // It is not a production server and never listens on anything but what the test
 // hands it (an httptest server on loopback).
@@ -36,6 +37,9 @@ type Options struct {
 	MaxViewers int
 	// DropEvery drops every n-th forwarded packet on every viewer leg; 0 drops none.
 	DropEvery int
+	// ClearMarker forwards every packet with the marker bit cleared, like a server
+	// that does not keep it (D5).
+	ClearMarker bool
 	// Token, when set, is the bearer every request must carry.
 	Token string
 }
@@ -213,7 +217,7 @@ func (s *Server) forward(t *webrtc.TrackRemote) {
 			// A fresh header per leg: the leg's interceptors append their own
 			// extensions, and a shared slice would race between legs.
 			out := &rtp.Packet{Header: rtp.Header{
-				Version: 2, Marker: pkt.Marker, SequenceNumber: pkt.SequenceNumber, Timestamp: pkt.Timestamp,
+				Version: 2, Marker: pkt.Marker && !s.opt.ClearMarker, SequenceNumber: pkt.SequenceNumber, Timestamp: pkt.Timestamp,
 			}, Payload: pkt.Payload}
 			if stamp != nil && v.ext != 0 {
 				_ = out.SetExtension(v.ext, append([]byte(nil), stamp...))

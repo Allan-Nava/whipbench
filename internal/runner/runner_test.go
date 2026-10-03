@@ -295,6 +295,38 @@ func TestLossThroughALossyRelay(t *testing.T) {
 		if v.RTP.LossPercent < 1 || v.RTP.LossPercent > 3 {
 			t.Errorf("viewer %d: loss %.2f%%, want about 2%% (every 50th packet dropped, less what NACK recovers)", v.ID, v.RTP.LossPercent)
 		}
+		if len(v.OneWayDelay) != 1 {
+			t.Errorf("viewer %d: %d one-way delay blocks, want 1", v.ID, len(v.OneWayDelay))
+			continue
+		}
+		// An incomplete frame that reached a hash would almost surely miss the clip
+		// table, so zero unmatched shows that none did.
+		b := v.OneWayDelay[0]
+		if b.IncompleteFrames == 0 || !b.Available || b.Samples == 0 || b.Samples > b.CompleteFrames || b.UnmatchedFrames != 0 {
+			t.Errorf("viewer %d: one-way delay block %+v", v.ID, b)
+		}
+		t.Logf("viewer %d: received %d, lost %d, about %d dropped by the relay", v.ID, v.RTP.Received, v.RTP.Lost, (v.RTP.Received+v.RTP.Lost)/50)
+	}
+}
+
+// Without a marker no keyframe completes (internal/rtpstats/rtpstats.go:248-252), so
+// no viewer joins and the pooled block says "no viewer joined": this test asserts
+// neither Joined, the verdict nor the pooled block (P8). What it checks is that every
+// viewer's reassembler fell back to the next RTP timestamp to end a frame (D5), and
+// that the frames it closed that way still hash to the clip.
+func TestMarkerlessRelay(t *testing.T) {
+	t.Parallel()
+	rep := run(t, testserver.Options{ClearMarker: true}, base("vp8", 2), "")
+	for _, v := range rep.Viewers {
+		if len(v.OneWayDelay) != 1 {
+			t.Errorf("viewer %d: %d one-way delay blocks, want 1", v.ID, len(v.OneWayDelay))
+			continue
+		}
+		b := v.OneWayDelay[0]
+		if b.FrameEnd != reassembler.EndTimestamp || !b.Available || b.Samples == 0 || b.Invalid != 0 || b.UnmatchedFrames != 0 {
+			t.Errorf("viewer %d: one-way delay block %+v", v.ID, b)
+		}
+		t.Logf("viewer %d: %d samples, %d complete, %d incomplete", v.ID, b.Samples, b.CompleteFrames, b.IncompleteFrames)
 	}
 }
 
