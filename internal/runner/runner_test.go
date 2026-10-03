@@ -17,11 +17,15 @@ import (
 
 	"github.com/Allan-Nava/whipbench"
 	"github.com/Allan-Nava/whipbench/internal/clip"
+	"github.com/Allan-Nava/whipbench/internal/fingerprint"
+	"github.com/Allan-Nava/whipbench/internal/publisher"
+	"github.com/Allan-Nava/whipbench/internal/reassembler"
 	"github.com/Allan-Nava/whipbench/internal/report"
 	"github.com/Allan-Nava/whipbench/internal/rtc"
 	"github.com/Allan-Nava/whipbench/internal/runner"
 	"github.com/Allan-Nava/whipbench/internal/scenario"
 	"github.com/Allan-Nava/whipbench/internal/testserver"
+	"github.com/Allan-Nava/whipbench/internal/viewer"
 )
 
 const (
@@ -119,6 +123,38 @@ func TestRoundTripVP8(t *testing.T) {
 			t.Errorf("viewer %d: start %v ms, offset %v, want the plain ramp", v.ID, v.StartOffsetMs, v.RampOffsetMs)
 		}
 	}
+	// WB-38: one-way delay by frame fingerprint, pooled and per viewer.
+	p := a.FingerprintDelay()
+	if !p.Available || p.Viewers != 4 || p.ViewersByFrameEnd["marker"] != 4 || p.Ms == nil {
+		t.Fatalf("pooled one-way delay over loopback through the relay must be available: %+v", p)
+	}
+	if p.Ms.P50 <= 0 || p.Ms.P99 >= 1000 {
+		t.Errorf("implausible loopback one-way delay: %+v", p.Ms)
+	}
+	if p.Invalid != 0 || p.UnmatchedFrames != 0 || p.LoopFrames != 120 || p.DuplicateFrames != 0 {
+		t.Errorf("pooled counts: %+v", p)
+	}
+	if p.LoopMinMs == nil || *p.LoopMinMs <= 3000 {
+		t.Errorf("loopMinMs %v, want > 3000", p.LoopMinMs)
+	}
+	checkFingerprintViewers(t, rep)
+}
+
+// checkFingerprintViewers asserts every viewer carries one available fingerprint block
+// that found frame ends by marker and has neither invalid nor unmatched frames.
+func checkFingerprintViewers(t *testing.T, rep *report.Report) {
+	t.Helper()
+	for _, v := range rep.Viewers {
+		if len(v.OneWayDelay) != 1 {
+			t.Errorf("viewer %d: %d one-way delay blocks, want 1", v.ID, len(v.OneWayDelay))
+			continue
+		}
+		b := v.OneWayDelay[0]
+		if b.Source != viewer.SourceFingerprint || !b.Available || b.FrameEnd != reassembler.EndMarker ||
+			b.Samples == 0 || b.Invalid != 0 || b.UnmatchedFrames != 0 {
+			t.Errorf("viewer %d: one-way delay block %+v", v.ID, b)
+		}
+	}
 }
 
 // WB-8: a seeded offset moves each viewer's start, and the report says by how much.
@@ -154,6 +190,64 @@ func TestRoundTripH264(t *testing.T) {
 		if v.Codec != "h264" || v.RTP.Lost != 0 || !v.PacketTransit.Available {
 			t.Errorf("viewer %d: %+v", v.ID, v)
 		}
+	}
+	checkFingerprintViewers(t, rep)
+	if p := rep.Aggregate.FingerprintDelay(); !p.Available || p.Viewers != 2 {
+		t.Errorf("pooled one-way delay: %+v", p)
+	}
+}
+
+// publishFor streams the embedded VP8 clip for one second to a relay, with the given
+// send log (nil is publish's path), and returns the publisher's result.
+func publishFor(t *testing.T, log *fingerprint.SendLog) publisher.Result {
+	t.Helper()
+	srv, err := testserver.New(testserver.Options{RTC: loop})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hs := httptest.NewServer(srv)
+	t.Cleanup(func() { hs.Close(); srv.Close() })
+	c, err := clip.Load("vp8", whipbench.ClipVP8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	pub, err := publisher.Connect(ctx, publisher.Config{WHIP: hs.URL + "/whip", Clip: c, RTC: loop, SendLog: log})
+	if err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	sctx, scancel := context.WithTimeout(ctx, time.Second)
+	defer scancel()
+	return pub.Stream(sctx)
+}
+
+func TestRoundTripPublisherWithoutASendLog(t *testing.T) {
+	t.Parallel()
+	res := publishFor(t, nil)
+	if res.FramesSent < 20 || res.Error != "" {
+		t.Fatalf("publisher without a send log: %+v", res)
+	}
+}
+
+func TestRoundTripPublisherFillsTheSendLog(t *testing.T) {
+	t.Parallel()
+	log := fingerprint.NewSendLog(120)
+	res := publishFor(t, log)
+	if log.Recorded() != res.FramesSent || res.FramesSent < 20 {
+		t.Fatalf("send log recorded %d frames, publisher sent %d", log.Recorded(), res.FramesSent)
+	}
+	if _, _, ok := log.Latest(0, time.Now()); !ok {
+		t.Error("the send log has no send of clip frame 0")
+	}
+}
+
+func TestMethodStatesTheReassemblyWindow(t *testing.T) {
+	if reassembler.Window != time.Second {
+		t.Fatalf("reassembler.Window is %v; the Method line says 1 s", reassembler.Window)
+	}
+	if !strings.Contains(report.OneWayDelayMethod, "incomplete 1 s after its first packet") {
+		t.Error("OneWayDelayMethod does not state the reassembly window")
 	}
 }
 

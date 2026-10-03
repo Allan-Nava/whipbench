@@ -20,7 +20,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Allan-Nava/whipbench/internal/fingerprint"
 	"github.com/Allan-Nava/whipbench/internal/metrics"
+	"github.com/Allan-Nava/whipbench/internal/reassembler"
 	"github.com/Allan-Nava/whipbench/internal/rtc"
 	"github.com/Allan-Nava/whipbench/internal/rtpstats"
 	"github.com/Allan-Nava/whipbench/internal/stats"
@@ -49,6 +51,10 @@ type Config struct {
 	// Stall is the packet gap counted as a stall; 0 means 500 ms.
 	Stall time.Duration
 	Live  *metrics.Live
+	// Frames and SendLog, both set by run, from the clip it publishes, turn on one-way
+	// delay; view leaves them nil and the report says why.
+	Frames  *fingerprint.Table
+	SendLog *fingerprint.SendLog
 }
 
 // PacketTransit is a viewer's per-packet arrival minus send stamp, or why it could not be measured.
@@ -121,6 +127,8 @@ type progress struct {
 	transit   PacketTransit
 	extID     uint8
 	joinedSet bool
+	owdOn     bool
+	owd       OneWayDelay
 }
 
 func msPtr(d time.Duration) *float64 {
@@ -197,6 +205,9 @@ func Run(ctx context.Context, id int, cfg Config) (res Result) {
 			res.RTP = pr.stream.Summary()
 		}
 		res.PacketTransit = finishPacketTransit(pr.transit)
+		if pr.owdOn {
+			res.OneWayDelay = []OneWayDelay{pr.owd}
+		}
 	}()
 
 	if _, err := pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo,
@@ -227,10 +238,14 @@ func Run(ctx context.Context, id int, cfg Config) (res Result) {
 		pr.extID = rtc.ExtensionID(receiver.GetParameters().HeaderExtensions, rtc.AbsCaptureTimeURI)
 		pr.transit.Negotiated = pr.extID != 0
 		pr.transit.hist = stats.NewHistogram()
+		if cfg.Frames != nil && cfg.SendLog != nil {
+			pr.owdOn = true
+			pr.owd = OneWayDelay{Source: SourceFingerprint, Hist: stats.NewHistogram()}
+		}
 		pr.mu.Unlock()
 		go drainRTCP(receiver)
 		defer close(pr.readDone)
-		readLoop(track, pr, live)
+		readLoop(track, pr, live, cfg.Frames, cfg.SendLog)
 	})
 
 	offer, err := pc.CreateOffer(nil)
@@ -300,10 +315,22 @@ func Run(ctx context.Context, id int, cfg Config) (res Result) {
 	return res
 }
 
-func readLoop(track *webrtc.TrackRemote, pr *progress, live *metrics.Live) {
+func readLoop(track *webrtc.TrackRemote, pr *progress, live *metrics.Live, frames *fingerprint.Table, log *fingerprint.SendLog) {
+	var rs *reassembler.Reassembler
+	var m *fingerprint.Matcher
 	pr.mu.Lock()
 	codec, extID, st, origin := pr.codec, pr.extID, pr.stream, pr.origin
+	if pr.owdOn {
+		var err error
+		if rs, err = reassembler.New(codec); err != nil {
+			pr.owd.Reason = fmt.Sprintf("codec %q has no fingerprint", codec)
+			rs = nil
+		} else {
+			m = fingerprint.NewMatcher(log, frames.Ticks())
+		}
+	}
 	pr.mu.Unlock()
+	var lastInc uint64
 	var ac rtp.AbsCaptureTimeExtension
 	for {
 		pkt, _, err := track.ReadRTP()
@@ -342,6 +369,37 @@ func readLoop(track *webrtc.TrackRemote, pr *progress, live *metrics.Live) {
 			}
 		}
 		pr.mu.Unlock()
+
+		// One-way delay: reassembly and hashing stay outside pr.mu.
+		if rs == nil {
+			continue
+		}
+		done := rs.Push(pkt, now)
+		if len(done) == 0 && rs.Incomplete() == lastInc {
+			continue
+		}
+		outs := make([]outcome, len(done))
+		ds := make([]time.Duration, len(done))
+		for j, f := range done {
+			outs[j], ds[j] = classify(f, codec, frames, m)
+		}
+		pr.mu.Lock()
+		for j, o := range outs {
+			pr.owd.CompleteFrames++
+			switch o {
+			case sampled:
+				pr.owd.Hist.Add(float64(ds[j]) / float64(time.Millisecond))
+			case invalid:
+				pr.owd.Invalid++
+			case unmatched:
+				pr.owd.UnmatchedFrames++
+			case duplicate: // complete, never sampled: CompleteFrames is all it adds
+			}
+		}
+		pr.owd.IncompleteFrames = rs.Incomplete()
+		pr.owd.FrameEnd = rs.FrameEnd()
+		pr.mu.Unlock()
+		lastInc = rs.Incomplete()
 	}
 }
 
@@ -377,5 +435,38 @@ func closeOnce(c chan struct{}) {
 	case <-c:
 	default:
 		close(c)
+	}
+}
+
+// outcome is what one complete frame contributes to the viewer's block.
+type outcome int
+
+const (
+	sampled   outcome = iota
+	invalid           // aliased or not logged (P6)
+	unmatched         // rejected, nothing to hash, or not in the clip
+	duplicate         // a clip duplicate: complete, never sampled
+)
+
+// classify hashes and matches one complete frame. It runs outside pr.mu.
+func classify(f reassembler.Frame, codec string, frames *fingerprint.Table, m *fingerprint.Matcher) (outcome, time.Duration) {
+	if f.Rejected {
+		return unmatched, 0
+	}
+	fp, ok := fingerprint.Of(codec, f.Payload)
+	if !ok {
+		return unmatched, 0
+	}
+	i, st := frames.Lookup(fp)
+	switch st {
+	case fingerprint.Unique:
+		if v, d := m.Match(i, f.Timestamp, f.Arrival); v == fingerprint.Sampled {
+			return sampled, d
+		}
+		return invalid, 0
+	case fingerprint.Duplicate:
+		return duplicate, 0
+	default:
+		return unmatched, 0
 	}
 }

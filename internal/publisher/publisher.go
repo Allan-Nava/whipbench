@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Allan-Nava/whipbench/internal/clip"
+	"github.com/Allan-Nava/whipbench/internal/fingerprint"
 	"github.com/Allan-Nava/whipbench/internal/metrics"
 	"github.com/Allan-Nava/whipbench/internal/rtc"
 	"github.com/Allan-Nava/whipbench/internal/whip"
@@ -37,6 +38,9 @@ type Config struct {
 	RTC    rtc.Options
 	HTTP   *http.Client
 	Live   *metrics.Live
+	// SendLog logs t0 per frame for one-way delay (WB-38); nil in publish, which keeps
+	// no log.
+	SendLog *fingerprint.SendLog
 	// ConnectTimeout bounds the POST plus ICE and DTLS; 0 means 10 s.
 	ConnectTimeout time.Duration
 	// NoStamp disables the send-time stamp, to measure what it costs or to check a
@@ -199,6 +203,8 @@ func (p *Publisher) Stamped() bool { return p.extID != 0 }
 // falls more than half a second behind (a suspended laptop, a starved CPU) the
 // schedule restarts from now rather than bursting to catch up; RTP timestamps keep
 // counting frames, so a slip shows up as jitter at the viewers and is counted here.
+// A frame's send time goes into the send log just before its first packet is
+// written, so no viewer can hold a frame whose send is not logged.
 func (p *Publisher) Stream(ctx context.Context) Result {
 	c := p.cfg.Clip
 	var pay rtp.Payloader
@@ -253,6 +259,9 @@ loop:
 			if p.extID != 0 {
 				ext, _ := rtp.NewAbsCaptureTimeExtension(time.Now()).Marshal()
 				_ = pkt.SetExtension(p.extID, ext)
+			}
+			if i == 0 {
+				p.cfg.SendLog.Record(k, time.Now())
 			}
 			if err := p.track.WriteRTP(pkt); err != nil {
 				continue // a closing connection; the state change ends the loop
