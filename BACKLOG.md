@@ -93,7 +93,7 @@ method and WB-5 is in `evals/`.**
   `internal/scenario` and pinned by its reference vectors; the report records the seed,
   the bound and each viewer's `rampOffsetMs`. Off by default.
   <!-- wb: prio=med size=S labels=measurement ver=main -->
-- [ ] **WB-38 — One-way delay by frame fingerprint**: the headline delay figure, and the
+- [x] **WB-38 — One-way delay by frame fingerprint**: the headline delay figure, and the
   one WB-5 publishes (WB-1, D2 and D4 in `thoughts/WB-1-latency-method/02-design.md`). In
   `run` the publisher logs t0 = `time.Now()` just before each frame's first `WriteRTP`,
   under a 64-bit hash of the frame's depacketised bytes: the whole VP8 frame, and for
@@ -108,7 +108,11 @@ method and WB-5 is in `evals/`.**
   the clip loads; a bitstream rewrite counts as `unmatchedFrames`; a server that drops
   the marker bit (WB-4) ends the frame at the last packet before the next RTP timestamp.
   Open: the CPU per viewer of reassembly and hashing at scale is unmeasured (WB-25's
-  ceiling). <!-- wb: prio=high size=L labels=measurement,client -->
+  ceiling). Done 2026-10-03: QRSPI in `thoughts/WB-38-frame-fingerprint/` (#54–#76);
+  two departures from this text, approved in the Design — whipbench's own reassembler
+  instead of samplebuilder (D4), retransmissions beside the figure only with WB-41 (D6)
+  — and the loop is counted in frames, not seconds (D3).
+  <!-- wb: prio=high size=L labels=measurement,client ver=main -->
 
 ## v0.2.0 — Simulcast, layer switches and metrics <!-- ms: phase=next -->
 
@@ -162,6 +166,21 @@ method and WB-5 is in `evals/`.**
   Open: whether the stats interceptor's NACK count means NACKs sent, and how recovered
   packets relate to `tooLate` in `internal/rtpstats/rtpstats.go`.
   <!-- wb: prio=med size=M labels=measurement,report -->
+- [ ] **WB-42 — Live one-way delay series with a source label**: a Prometheus histogram of
+  WB-38's per-frame figure, `whipbench_one_way_delay_seconds{source="fingerprint"}`, so a
+  long run shows the headline while it runs. WB-38 opened none (its D8): an unlabelled
+  series would change meaning when WB-39's `stamp` source lands, and
+  `internal/metrics/metrics_test.go` keeps the name shut until the label exists.
+  <!-- wb: prio=med size=S labels=report -->
+- [ ] **WB-43 — Frame rate for Annex-B clips from the clip**: `clip.Load` reads H.264 at a
+  hard-coded 30 fps (`internal/clip/clip.go:231`), so a clip at another rate is paced and
+  timestamped wrong; take the rate from the SPS timing information or a flag. One-way
+  delay is safe either way — it counts the loop in frames (WB-38, D3) — the pacing is not.
+  <!-- wb: prio=low size=S labels=client -->
+- [ ] **WB-44 — One-way delay split by keyframe and delta frame**: a keyframe spans many
+  packets and a delta frame few, so their first-to-last spread differs; report both
+  distributions beside the pooled figure, as WB-38's Questions phase deferred (Q3).
+  <!-- wb: prio=low size=M labels=measurement,report -->
 
 ## v0.3.0 — The comparative report across four servers <!-- ms: phase=later -->
 

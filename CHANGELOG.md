@@ -6,6 +6,16 @@ versions follow [SemVer](https://semver.org/). Items reference their `WB-n` back
 ## [Unreleased]
 
 ### Added
+- One-way delay per frame, by frame fingerprint, in `run` (WB-38): first-packet send to
+  last-packet arrival, one sample per complete frame, on the one process's monotonic
+  clock. A new report key `oneWayDelay` — a list of source blocks, source `fingerprint`,
+  per viewer and in the aggregate; the schema stays `whipbench.report/v0`, since a key was
+  added and none changed meaning. The Markdown table and the stdout line lead with it,
+  packet transit unchanged below; `view` has no send log and reports it unavailable. Two
+  departures from the backlog item change what a reader gets: whipbench reassembles
+  frames itself, with a 1 s window, instead of pion's samplebuilder (D4), and no
+  retransmission count sits beside the figure until WB-41 (D6). No Prometheus series yet
+  (WB-42).
 - A seeded per-viewer offset on the ramp (WB-8): `rampOffsetSeed` and
   `rampOffsetMaxSeconds` in the scenario, `--ramp-offset-seed` and `--ramp-offset-max` on
   `view` and `run`. Each viewer's start moves by an offset drawn uniformly from

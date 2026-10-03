@@ -19,8 +19,8 @@
 | S4 | ✅ done | S4 session | `93ab064 (#73)` | offline clip round trip: H.264 240/240 with 9 STAP-A, VP8 240/240, 0 incomplete, 0 rejected |
 | S5 | ✅ done | S5 session | `6ca4c4b (#71)` | report blocks, Markdown, stdout, guards; discoveries: joined viewer without a fingerprint block counts as "had none" (revisit with WB-39), FingerprintDelay fallback sets an empty ViewersByFrameEnd, frameEnds helper |
 | S6 | ✅ done | S6 session | `e76f622 (#74)` | wired into run: publisher send log, runner table and log, viewer reassembly and match outside the lock; not split; 5 plan tests green; deviation D1 (no Ticks == 0 guard) resolved by the owner, see Deviations |
-| S7 | ✅ done | S7 session | this PR (`wb-38/s7`) | markerless + lossy relays; `ClearMarker` relay option, `TestMarkerlessRelay` (103-118 samples, frame end `timestamp`), `TestLossThroughALossyRelay` extended; `DropEvery:` observation is Discovery 6 (holes); line refs in Discoveries 6-7 updated to `main` |
-| S8 | ⬜ todo | — | — | docs, CHANGELOG, backlog; last |
+| S7 | ✅ done | S7 session | `8646307 (#76)` | markerless + lossy relays; `ClearMarker` relay option, `TestMarkerlessRelay` (103-118 samples, frame end `timestamp`), `TestLossThroughALossyRelay` extended; `DropEvery:` observation is Discovery 6 (holes); line refs in Discoveries 6-7 updated to `main` |
+| S8 | ✅ done | S8 session | this PR (`wb-38/s8`) | README (intro, Status, definitions row, percentiles, one-way delay paragraph, limits), CHANGELOG, CLAUDE.md layout and rule 5, BACKLOG WB-38 done (#54–#76) and WB-42/43/44 opened, ROADMAP regenerated; H1 open, so the README cell says types 1-5 pending Table 7-1 |
 | H1 | ⬜ todo | — | — | maintainer: VCL types vs H.264 Table 7-1 |
 
 Legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸️ blocked · ❌ failed
@@ -29,7 +29,7 @@ Legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸️ blocked · ❌ failed
 
 ## Where I left off
 
-**Current step:** S7, then S8. Second wave merged 2026-10-03: S4 #73, S6 #74. First wave merged 2026-10-03: S1 #68, S2 #69 (rebased on S1, gate re-run green), S3 #70, S5 #71.
+**Current step:** every agent step is done (S1-S8); only H1 remains — the maintainer checks the H.264 VCL NAL types against Table 7-1 and ticks D1 in `thoughts/WB-38-frame-fingerprint/02-design.md`. Third wave merged 2026-10-03: S7 #76, with D1's guard #75. Second wave merged 2026-10-03: S4 #73, S6 #74. First wave merged 2026-10-03: S1 #68, S2 #69 (rebased on S1, gate re-run green), S3 #70, S5 #71.
 
 **Done so far:**
 - <what has been written, with paths>
@@ -72,7 +72,7 @@ artifact that needs correcting.
 - **Artifact to fix:** `04-plan.md` § S1 — an Implement note now records the guard.
 - **Re-enter:** none.
 - **Landed steps:** S1 adapt (`NewTable` returns "the clip has no frame duration (Ticks is 0)", tested in `TestTableErrors`); S6 keep.
-- **Status:** resolved 2026-10-03 — this PR.
+- **Status:** resolved 2026-10-03 — #75.
 
 ---
 
@@ -80,7 +80,17 @@ artifact that needs correcting.
 
 | Command | When | Result |
 |---|---|---|
-| `<command>` | <step> | <result> |
+| `test -z "$(gofmt -l .)" && go vet ./... && go test -race -count=1 ./...` | S8 | exit 0; every package ok |
+| `golangci-lint run --disable=staticcheck --disable=unused ./...` | S8 | exit 0; 0 issues |
+| `sh scripts/check-repo.sh` | S8 | exit 0; repo invariants hold at 0.0.1 |
+| `node scripts/leakcheck.mjs` | S8 | exit 0, before the push (no private denylist set in this environment, so names were not checked) |
+| `npm run roadmap && npm run backlog` | S8 | exit 0; 44 items, 8 milestones, ROADMAP.md in step |
+| `npm run build:site` | S8 | exit 0; 12 sections, the new definitions row rendered |
+| `grep -l 'first-packet send to last-packet arrival' README.md internal/report/report.go internal/fingerprint/fingerprint.go \| wc -l` | S8 | 3 |
+| `grep -c '^- \[x\] \*\*WB-38 — ' BACKLOG.md` | S8 | 1 |
+| `awk '/^```/{f=!f;next} !f' BACKLOG.md \| grep -cE '^- \[ \] \*\*WB-4[234] — '` | S8 | 3 |
+| `awk … CHANGELOG.md \| grep -c 'oneWayDelay'` (the Unreleased section) | S8 | 1 |
+| `grep -c 'neither implemented yet' CLAUDE.md` | S8 | 0 |
 
 ---
 
