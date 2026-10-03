@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Allan-Nava/whipbench/internal/clip"
+	"github.com/Allan-Nava/whipbench/internal/fingerprint"
 	"github.com/Allan-Nava/whipbench/internal/metrics"
 	"github.com/Allan-Nava/whipbench/internal/publisher"
 	"github.com/Allan-Nava/whipbench/internal/report"
@@ -52,6 +53,16 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 	if sc.WHIP != "" && opt.Clip == nil {
 		return nil, errors.New("runner: a WHIP endpoint needs a clip")
 	}
+	// One-way delay: the clip table and the send log exist only when this run publishes.
+	var table *fingerprint.Table
+	var sendLog *fingerprint.SendLog
+	if sc.WHIP != "" {
+		var err error
+		if table, err = fingerprint.NewTable(opt.Clip); err != nil {
+			return nil, fmt.Errorf("runner: %w", err)
+		}
+		sendLog = fingerprint.NewSendLog(table.Frames())
+	}
 	logf := opt.Logf
 	if logf == nil {
 		logf = func(string, ...any) {}
@@ -73,6 +84,9 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 	defer stopMetrics()
 
 	in := report.Input{Command: opt.Command, Version: version.String(), StartedAt: time.Now(), Scenario: sc}
+	if table != nil {
+		in.Fingerprint = &report.Fingerprint{DuplicateFrames: table.DuplicateFrames(), LoopFrames: table.Frames()}
+	}
 
 	// The publisher.
 	var pubDone chan publisher.Result
@@ -81,6 +95,7 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 		logf("publishing %s to %s", sc.Codec, whip.Host(sc.WHIP))
 		pub, err := publisher.Connect(ctx, publisher.Config{
 			WHIP: sc.WHIP, Bearer: opt.Bearer, Clip: opt.Clip, RTC: rtcOpt, HTTP: opt.HTTP, Live: live,
+			SendLog: sendLog,
 		})
 		if err != nil {
 			res := pub.Result()
@@ -132,6 +147,7 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 			r := viewer.Run(vctx, i, viewer.Config{
 				WHEP: sc.WHEP, Bearer: opt.Bearer, RTC: rtcOpt, HTTP: opt.HTTP,
 				JoinTimeout: sc.JoinTimeout(), Stall: sc.Stall(), Live: live,
+				Frames: table, SendLog: sendLog,
 			})
 			r.StartOffsetMs = ms(starts[i])
 			r.RampOffsetMs = offset
@@ -149,6 +165,11 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 	}
 	in.FinishedAt = time.Now()
 	in.Interrupted = ctx.Err() != nil
+	if in.Fingerprint != nil {
+		if d, ok := sendLog.LoopMin(); ok {
+			in.Fingerprint.LoopMin = d
+		}
+	}
 	rep := report.Build(in)
 	logf("%s", rep.Aggregate.Verdict)
 	return rep, nil
