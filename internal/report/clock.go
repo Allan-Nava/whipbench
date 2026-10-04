@@ -29,9 +29,15 @@ const (
 	ClockNone = "none"
 )
 
-// StepThreshold is how far wall-clock and monotonic elapsed time may drift apart over a
-// run before the report records a step.
+// StepThreshold is how far wall-clock and monotonic elapsed time may move apart between
+// two observations, beyond what MaxSlewPPM explains, before the report records a step.
 const StepThreshold = 100 * time.Microsecond
+
+// MaxSlewPPM is the fastest rate, in parts per million, at which a time daemon is taken
+// to slew the wall clock — ntpd's 500 ppm limit. Divergence that grows no faster is a
+// correction in progress, not a step: a laptop measured on 2026-10-04 drifted a steady
+// 2.8 ppm, which crosses 0.1 ms after 36 s, so a bound on the whole run flagged every run.
+const MaxSlewPPM = 500
 
 // MaxRankUncertaintyMs is the largest clock uncertainty a figure may carry and still be
 // ranked against another report's (D8, Q7).
@@ -47,29 +53,58 @@ type Clock struct {
 	Method        string   `json:"method"`
 	OffsetMs      *float64 `json:"offsetMs,omitempty"`
 	UncertaintyMs *float64 `json:"uncertaintyMs,omitempty"`
-	// StepDetected: wall-clock and monotonic elapsed time over the run differ by more
-	// than StepThreshold, so the wall clock was stepped or slewed while it ran.
+	// StepDetected: between two of the run's once-a-second observations, wall-clock and
+	// monotonic elapsed time moved apart by more than StepThreshold plus a MaxSlewPPM
+	// slew, so the wall clock was stepped (or slewed faster than a time daemon slews).
 	StepDetected bool `json:"stepDetected"`
 }
 
 // MonotonicClock is the clock of a single-process run: both ends on one monotonic clock,
 // so the offset and its uncertainty are zero by construction, not by measurement.
-func MonotonicClock(started, finished time.Time) *Clock {
+// stepped is what the run's StepWatch saw.
+func MonotonicClock(stepped bool) *Clock {
 	zero, unc := 0.0, 0.0
-	return &Clock{Method: ClockMonotonic, OffsetMs: &zero, UncertaintyMs: &unc, StepDetected: StepDetected(started, finished)}
+	return &Clock{Method: ClockMonotonic, OffsetMs: &zero, UncertaintyMs: &unc, StepDetected: stepped}
 }
 
-// StepDetected compares the wall-clock and the monotonic time elapsed between two
-// instants taken with time.Now. Without a monotonic reading on both, Go subtracts wall
-// clocks, the two are equal and no step can be seen.
-func StepDetected(started, finished time.Time) bool {
-	return stepped(finished.Round(0).Sub(started.Round(0)), finished.Sub(started))
+// StepWatch watches the wall clock against the monotonic clock while a run lasts. Each
+// Observe compares, since the previous observation, the wall-clock and the monotonic time
+// elapsed; a run that stepped had one interval where they differ by more than the slew
+// explains. One interval at a time, so a slow steady drift never adds up to a step.
+// Observe is not safe for concurrent use: one goroutine observes, then the run reads.
+type StepWatch struct {
+	prev    time.Time
+	stepped bool
 }
 
-// stepped is the comparison itself: more than StepThreshold apart, either way.
+// NewStepWatch starts watching at start, a time.Now reading.
+func NewStepWatch(start time.Time) *StepWatch { return &StepWatch{prev: start} }
+
+// Observe takes a time.Now reading. Without a monotonic reading on both ends Go subtracts
+// wall clocks, the two elapsed times are equal and no step can be seen.
+func (w *StepWatch) Observe(now time.Time) {
+	w.interval(now.Round(0).Sub(w.prev.Round(0)), now.Sub(w.prev))
+	w.prev = now
+}
+
+// interval records one interval's wall-clock and monotonic elapsed time.
+func (w *StepWatch) interval(wall, mono time.Duration) {
+	if stepped(wall, mono) {
+		w.stepped = true
+	}
+}
+
+// Stepped reports whether any observed interval stepped.
+func (w *StepWatch) Stepped() bool { return w.stepped }
+
+// stepped is the comparison for one interval: wall and mono further apart, either way,
+// than StepThreshold plus MaxSlewPPM of the interval.
 func stepped(wall, mono time.Duration) bool {
 	d := wall - mono
-	return d > StepThreshold || d < -StepThreshold
+	if d < 0 {
+		d = -d
+	}
+	return d > StepThreshold+time.Duration(int64(mono.Abs())*MaxSlewPPM/1_000_000)
 }
 
 // comparability is a source block's verdict under the report's clock (D8): comparable
