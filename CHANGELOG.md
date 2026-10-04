@@ -9,8 +9,11 @@ versions follow [SemVer](https://semver.org/). Items reference their `WB-n` back
 - Topology, clock and comparability in the report (WB-40): every report gains `topology`
   (`single-process` for a `run` that publishes, `split` otherwise) and `clock` (`method`,
   `offsetMs`, `uncertaintyMs`, `stepDetected`), and no host names. `run` is `monotonic`,
-  offset and uncertainty 0, with `stepDetected` set when wall-clock and monotonic elapsed
-  time differ by more than 0.1 ms; `view` is `none` and records no offset or uncertainty
+  offset and uncertainty 0, with `stepDetected` set when, between two once-a-second
+  observations, wall-clock and monotonic elapsed time differ by more than 0.1 ms plus a
+  500 ppm slew. The design's bound on the whole run was dropped before release: a laptop's
+  steady 2.8 ppm drift crossed it after 36 s and flagged every run (measured in WB-5's
+  runs). `view` is `none` and records no offset or uncertainty
   until WB-3 measures the publisher's clock (`report.Input.Clock` is the seam). Each
   one-way delay block, per viewer and pooled, adds `uncertaintyMs` (only when available),
   `comparable` and `notComparableReason`. `report.Rankable` is the ranking rule WB-21 will
