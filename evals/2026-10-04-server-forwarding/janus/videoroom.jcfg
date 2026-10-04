@@ -1,0 +1,9 @@
+general: {}
+room-1234: {
+	description = "whipbench"
+	publishers = 2
+	bitrate = 2000000
+	fir_freq = 10
+	videocodec = "vp8,h264"
+	h264_profile = "42e01f"
+}

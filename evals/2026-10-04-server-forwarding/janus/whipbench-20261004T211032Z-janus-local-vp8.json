@@ -1,0 +1,279 @@
+{
+  "schema": "whipbench.report/v0",
+  "whipbenchVersion": "v0.0.0-20261004053617-5286f6189e94",
+  "command": "run",
+  "startedAt": "2026-10-04T21:10:32.632266637Z",
+  "finishedAt": "2026-10-04T21:10:49.707867464Z",
+  "server": {
+    "whipHost": "wb-janus:7080",
+    "whepHost": "wb-janus:7090"
+  },
+  "client": {
+    "os": "linux",
+    "arch": "arm64",
+    "cpus": 5,
+    "go": "go1.27.1"
+  },
+  "scenario": {
+    "name": "janus-local-vp8",
+    "whip": "wb-janus:7080",
+    "whep": "wb-janus:7090",
+    "codec": "vp8",
+    "viewers": 1,
+    "rampSeconds": 0,
+    "holdSeconds": 15,
+    "warmupSeconds": 2,
+    "joinTimeoutSeconds": 10,
+    "stallMs": 500
+  },
+  "publisher": {
+    "codec": "vp8",
+    "stamped": false,
+    "connectMs": 41.058042,
+    "framesSent": 511,
+    "packetsSent": 1173,
+    "bytesSent": 1188963,
+    "loops": 4,
+    "scheduleSlips": 0,
+    "sendingSeconds": 17.022639215
+  },
+  "aggregate": {
+    "valid": true,
+    "verdict": "valid: 1 of 1 viewers joined",
+    "viewers": 1,
+    "joined": 1,
+    "failed": 0,
+    "failedPercent": 0,
+    "droppedAfterJoin": 0,
+    "signallingMs": {
+      "n": 1,
+      "min": 7.394,
+      "mean": 7.394,
+      "p50": 7.394,
+      "p95": 7.394,
+      "p99": 7.394,
+      "max": 7.394
+    },
+    "joinFirstRtpMs": {
+      "n": 1,
+      "min": 31.605375,
+      "mean": 31.605375,
+      "p50": 31.605375,
+      "p95": 31.605375,
+      "p99": 31.605375,
+      "max": 31.605375
+    },
+    "joinFirstKeyframeMs": {
+      "n": 1,
+      "min": 998.689,
+      "mean": 998.689,
+      "p50": 998.689,
+      "p95": 998.689,
+      "p99": 998.689,
+      "max": 998.689
+    },
+    "lossPercent": {
+      "n": 1,
+      "min": 0,
+      "mean": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "jitterMs": {
+      "n": 1,
+      "min": 0.5448903481038931,
+      "mean": 0.5448903481038931,
+      "p50": 0.5448903481038931,
+      "p95": 0.5448903481038931,
+      "p99": 0.5448903481038931,
+      "max": 0.5448903481038931
+    },
+    "keyframeIntervalMeanS": {
+      "n": 1,
+      "min": 1,
+      "mean": 1,
+      "p50": 1,
+      "p95": 1,
+      "p99": 1,
+      "max": 1
+    },
+    "stalls": 0,
+    "packetsReceived": 1033,
+    "packetsLost": 0,
+    "lossPercentTotal": 0,
+    "oneWayDelay": [
+      {
+        "source": "fingerprint",
+        "available": true,
+        "viewers": 1,
+        "viewersByFrameEnd": {
+          "marker": 1
+        },
+        "completeFrames": 449,
+        "incompleteFrames": 0,
+        "samples": 449,
+        "invalid": 0,
+        "unmatchedFrames": 0,
+        "duplicateFrames": 0,
+        "loopFrames": 120,
+        "loopMinMs": 3995.811043,
+        "ms": {
+          "n": 449,
+          "min": 0.237333,
+          "mean": 0.5071876302895326,
+          "p50": 0.3974718079490587,
+          "p95": 0.9928250315652044,
+          "p99": 1.914623512330155,
+          "max": 5.392583
+        }
+      }
+    ],
+    "packetTransit": {
+      "available": false,
+      "reason": "not negotiated: the WHEP answer did not accept abs-capture-time",
+      "viewers": 0
+    }
+  },
+  "errors": {},
+  "timeline": [
+    {
+      "t": 1,
+      "active": 0,
+      "packets": 63
+    },
+    {
+      "t": 2,
+      "active": 1,
+      "packets": 71
+    },
+    {
+      "t": 3,
+      "active": 1,
+      "packets": 68
+    },
+    {
+      "t": 4,
+      "active": 1,
+      "packets": 66
+    },
+    {
+      "t": 5,
+      "active": 1,
+      "packets": 70
+    },
+    {
+      "t": 6,
+      "active": 1,
+      "packets": 71
+    },
+    {
+      "t": 7,
+      "active": 1,
+      "packets": 68
+    },
+    {
+      "t": 8,
+      "active": 1,
+      "packets": 66
+    },
+    {
+      "t": 9,
+      "active": 1,
+      "packets": 70
+    },
+    {
+      "t": 10,
+      "active": 1,
+      "packets": 72
+    },
+    {
+      "t": 11,
+      "active": 1,
+      "packets": 67
+    },
+    {
+      "t": 12,
+      "active": 1,
+      "packets": 66
+    },
+    {
+      "t": 13,
+      "active": 1,
+      "packets": 70
+    },
+    {
+      "t": 14,
+      "active": 1,
+      "packets": 71
+    }
+  ],
+  "viewers": [
+    {
+      "id": 0,
+      "startOffsetMs": 0,
+      "joined": true,
+      "codec": "vp8",
+      "signallingMs": 7.394,
+      "iceConnectedMs": 31.009375,
+      "firstRtpMs": 31.605375,
+      "firstKeyframeMs": 998.689,
+      "rtp": {
+        "received": 1033,
+        "expected": 1033,
+        "lost": 0,
+        "duplicates": 0,
+        "tooLate": 0,
+        "lossPercent": 0,
+        "jitterMs": 0.5448903481038931,
+        "receivingSeconds": 14.967412298,
+        "stalls": 0,
+        "stalledMs": 0,
+        "longestGapMs": 39.039042,
+        "keyframes": 15,
+        "keyframeIntervalMinS": 1,
+        "keyframeIntervalMeanS": 1,
+        "keyframeIntervalMaxS": 1
+      },
+      "oneWayDelay": [
+        {
+          "source": "fingerprint",
+          "available": true,
+          "frameEnd": "marker",
+          "completeFrames": 449,
+          "incompleteFrames": 0,
+          "samples": 449,
+          "invalid": 0,
+          "unmatchedFrames": 0,
+          "ms": {
+            "n": 449,
+            "min": 0.237333,
+            "mean": 0.5071876302895326,
+            "p50": 0.3974718079490587,
+            "p95": 0.9928250315652044,
+            "p99": 1.914623512330155,
+            "max": 5.392583
+          }
+        }
+      ],
+      "packetTransit": {
+        "available": false,
+        "reason": "not negotiated: the WHEP answer did not accept abs-capture-time",
+        "negotiated": false,
+        "stamped": 0,
+        "invalid": 0
+      }
+    }
+  ],
+  "method": [
+    "Join time is measured from the WHEP POST (after host-candidate ICE gathering). firstRtp: the first RTP packet arrives. firstKeyframe: the last packet of the first keyframe received complete arrives — no decoder runs, so this is when a frame could first be decoded, not when one was. A viewer has joined when it reaches firstKeyframe within the join timeout.",
+    "Loss: expected = highest − first extended sequence number + 1 (RFC 3550 A.1), lost = expected − received, duplicates not counted. Measured on the stream the viewer receives, after NACK recovery; RTX is not negotiated, so a retransmission counts as received.",
+    "Jitter: RFC 3550 §6.4.1 interarrival jitter, J += (|D| − J)/16 per packet, in milliseconds.",
+    "Keyframe interval: spacing of keyframe starts in RTP time, i.e. the GOP the server delivers. The publisher's clip has a fixed 1 s GOP and cannot answer PLI, so a joining viewer waits for the next keyframe in the loop.",
+    "One-way delay (source fingerprint): per frame, first-packet send to last-packet arrival, on the monotonic clock of the one process that runs both ends. The publisher logs t0 just before it hands a frame's first packet to the stack, by absolute frame index. Each viewer reassembles frames by RTP timestamp; t1 is the arrival of the frame's last packet — the marker packet, or, on a stream without markers, the last before the next timestamp (frameEnd). A complete frame is hashed — the first 64 bits of SHA-256 over the whole VP8 frame, or over the H.264 VCL NAL units — and matched to the latest send of that clip frame at or before t1; the sample is t1 − t0. A frame still incomplete 1 s after its first packet counts in incompleteFrames and is never hashed; a viewer's first frame and the frames still pending when it stops are not counted. A frame the depacketiser rejects or that is not in the clip counts in unmatchedFrames; a frame whose bytes repeat in the clip (duplicateFrames) is never sampled; a match the RTP timestamps prove whole loops too new, or one with no logged send at or before t1, is invalid. loopMinMs is the shortest time the publisher took to send loopFrames frames: a delay longer than that is caught only by that RTP timestamp check, and a viewer's first match is taken as it is. Retransmitted packets count like any other. Network plus server forwarding plus both clients' stacks — not glass-to-glass; a `view` run has no send log and reports it unavailable. The CPU cost of reassembling and hashing every frame on every viewer is not measured.",
+    "Packet transit: the publisher stamps each packet's wall-clock send time in the abs-capture-time RTP header extension; a viewer's sample is its arrival time minus the stamp. It is network plus server forwarding plus both clients' stacks, per packet rather than per frame, on one host or synchronised clocks — not glass-to-glass. When the server does not negotiate or forward the extension, packet transit is reported unavailable, never estimated.",
+    "Percentiles are nearest-rank. Join, loss and jitter summaries take one value per joined viewer; packet transit pools every valid sample of every viewer that has it, in a histogram with 1% buckets.",
+    "No-verdict rule: when more than 10% of the viewers failed to join, the aggregate is not valid and must not be quoted."
+  ]
+}

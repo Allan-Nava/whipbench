@@ -53,7 +53,7 @@ method and WB-5 is in `evals/`.**
   sender reports and `chronyc` were rejected: SFUs originate their own SRs, and chrony
   reports each daemon's view of its upstream, not of the peer.
   <!-- wb: prio=high size=M labels=client,measurement -->
-- [ ] **WB-4 — What each server forwards: extensions, payload bytes, marker bit**: for
+- [x] **WB-4 — What each server forwards: extensions, payload bytes, marker bit**: for
   MediaMTX, OvenMediaEngine, LiveKit and Janus, record whether the WHIP and WHEP answers
   negotiate abs-capture-time, whether the server forwards it, rewrites it or strips it,
   and which extensions it does forward (WB-39 rests on it); whether it forwards each
@@ -62,7 +62,12 @@ method and WB-5 is in `evals/`.**
   packet (WB-38's frame end). MediaMTX v1.21.1 negotiates abs-capture-time on neither
   leg (2026-10-01), and forwards frames byte for byte with one marker per frame on both
   codecs (2026-10-02, `evals/2026-10-02-mediamtx-fingerprint.md`); the other three are
-  unverified. <!-- wb: prio=high size=M labels=research,benchmark -->
+  unverified. Done 2026-10-04 (`evals/2026-10-04-server-forwarding.md`): no server
+  negotiates abs-capture-time on either leg; Janus 1.1.2 behind Meetecho's WHIP/WHEP
+  servers forwards frames byte for byte with their markers, through a Streaming mountpoint
+  since its VideoRoom WHEP needs a server offer; OvenMediaEngine v0.21.0 takes WHIP but has
+  no WHEP (404), and LiveKit has neither without Ingress transcoding — whipbench cannot view
+  either (WB-45). <!-- wb: prio=high size=M labels=research,benchmark ver=main -->
 - [ ] **WB-5 — Live run against MediaMTX with the decided method**: the 0.0.1 smoke run
   repeated with WB-1's method, one-way delay by frame fingerprint (WB-38), published in
   `evals/` as the first report that carries a one-way delay figure or says, with
@@ -142,7 +147,9 @@ method and WB-5 is in `evals/`.**
   Open: whether pion's NACK responder resends the stored packet with its header
   extensions, so that a retransmitted first packet still carries the stamp. It also owns
   WB-40's deferred `sourcesDisagree` flag and the block's `rewritten` count, which need
-  the second source.
+  the second source. WB-4 found no server that negotiates abs-capture-time on either leg
+  (MediaMTX, OvenMediaEngine, Janus), so against those the source would only ever say
+  `dropped`: worth building when a server in WB-45's set forwards it, not before.
   <!-- wb: prio=med size=M labels=measurement,client -->
 - [x] **WB-40 — Topology, clock and comparability in the report**: what makes two delay
   figures comparable (WB-1, D6 and D8). Every report gains `topology` (`single-process`
@@ -196,8 +203,17 @@ method and WB-5 is in `evals/`.**
 
 - [ ] **WB-20 — Four servers, one scenario set**: MediaMTX, OvenMediaEngine, LiveKit and
   Janus, each in Docker on the same machine (and then on separate machines with WB-3's
-  clock exchange), the same scenarios, every run in `evals/`.
+  clock exchange), the same scenarios, every run in `evals/`. The set is WB-45's to
+  decide: WB-4 found two of the four with no WHEP.
   <!-- wb: prio=high size=L labels=benchmark -->
+- [ ] **WB-45 — Which servers the comparison can include**: WB-4 found OvenMediaEngine
+  v0.21.0 with WHIP but no WHEP, and LiveKit with WHIP only through Ingress, which
+  transcodes, and no WHEP — whipbench's viewer reaches neither. Decide WB-20's set among
+  servers that speak both protocols with client offers (MediaMTX and Janus with Meetecho's
+  servers are verified; candidates to check the same way include SRS and Broadcast Box),
+  or give whipbench a viewer for one server's own signalling — a second code path whose
+  figures must stay comparable with the WHEP viewer's. Record the choice and why in WB-20.
+  <!-- wb: prio=high size=S labels=research,benchmark -->
 - [ ] **WB-21 — `whipbench compare`**: reads several reports and renders them side by
   side, refusing to compare runs whose scenarios, clips or client machines differ, and
   printing a no-verdict run as no verdict. <!-- wb: prio=high size=M labels=report -->

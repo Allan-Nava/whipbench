@@ -1,0 +1,13 @@
+general: {}
+mp-vp8: {
+	type = "rtp"
+	id = 1
+	description = "whipbench vp8"
+	media = ( { type = "video" mid = "v" port = 5004 pt = 96 codec = "vp8" } )
+}
+mp-h264: {
+	type = "rtp"
+	id = 2
+	description = "whipbench h264"
+	media = ( { type = "video" mid = "v" port = 5006 pt = 96 codec = "h264" fmtp = "profile-level-id=42e01f;packetization-mode=1" } )
+}

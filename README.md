@@ -114,6 +114,8 @@ Each run writes JSON (schema `whipbench.report/v0`) and a Markdown rendering of 
 
 [`evals/2026-10-01-mediamtx-local.md`](evals/2026-10-01-mediamtx-local.md): MediaMTX v1.21.1 in Docker on the same laptop, 10 and 50 viewers, VP8 and H.264. All viewers joined, no packet was lost, and packet transit (the 0.0.1 reports' `latency` key) was unavailable because MediaMTX's answers did not negotiate abs-capture-time. One machine, one server, loopback: it shows the tool works end to end and nothing about how MediaMTX compares with anything.
 
+[`evals/2026-10-04-server-forwarding.md`](evals/2026-10-04-server-forwarding.md): what four servers forward (WB-4). No server checked — MediaMTX, OvenMediaEngine, Janus — negotiates abs-capture-time on either leg, so one-way delay against them comes from the frame fingerprint alone. Janus 1.1.2 behind Meetecho's WHIP and WHEP servers forwards every frame byte for byte with its marker bit, as MediaMTX does; OvenMediaEngine v0.21.0 and LiveKit cannot be viewed over WHEP. The Janus setup is in that directory, reproducible.
+
 ## How it compares
 
 Two open tools sit closest. Both are good at what they set out to do; whipbench sets out to do something narrower.
@@ -121,7 +123,7 @@ Two open tools sit closest. Both are good at what they set out to do; whipbench 
 - **[Softvelum whep-load-tester](https://github.com/Softvelum/whep-load-tester)** (Go, pion, MIT) opens many native WHEP playback sessions to find a server's playback capacity. It does not publish over WHIP, and its documentation does not describe a latency measurement.
 - **[webrtcperf](https://github.com/vpalmisano/webrtcperf)** (Node.js, AGPL) drives real headless Chromium instances through Puppeteer and collects the browser's own statistics, including latency from a timestamp watermark on the frames and from abs-capture-time. A real browser is the most faithful client there is, and costs a browser per viewer; WHIP and WHEP are not what it is built around.
 
-whipbench is the combination neither aims at: both standard endpoints, native clients cheap enough to run hundreds from one machine, and one report format with fixed definitions — including a no-verdict rule and an explicit "unavailable" — so that the same scenario against MediaMTX, OvenMediaEngine, LiveKit, Janus or a managed service produces results that can be put side by side.
+whipbench is the combination neither aims at: both standard endpoints, native clients cheap enough to run hundreds from one machine, and one report format with fixed definitions — including a no-verdict rule and an explicit "unavailable" — so that the same scenario against any server that speaks WHIP and WHEP produces results that can be put side by side. That is a real limit: of the four servers first planned, MediaMTX and Janus (behind Meetecho's WHIP and WHEP servers) qualify, while OvenMediaEngine has no WHEP and LiveKit has WHIP only through a transcoding ingress ([`evals/2026-10-04-server-forwarding.md`](evals/2026-10-04-server-forwarding.md)).
 
 ## Limits
 
