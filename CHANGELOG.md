@@ -48,6 +48,12 @@ versions follow [SemVer](https://semver.org/). Items reference their `WB-n` back
   Dependabot security alerts on the first push.
 
 ### Fixed
+- An H.264 clip given to `publish --clip` was paced and timestamped at 30 fps whatever
+  its rate. The rate is now the one its SPS declares (the VUI's `timing_info`: 25 fps is
+  3600 ticks a frame, 29.97 is 3003), and the new `--fps` flag gives it when the SPS
+  declares none, or overrides it; a stream with neither is refused rather than guessed.
+  The embedded clips are unchanged, at 30 fps. One-way delay was right either way — it
+  counts the loop in frames — but the pacing was not (WB-43).
 - CI lint builds golangci-lint with the module's Go 1.27 instead of using the release
   binary, which is built with Go 1.26 and refuses the module; staticcheck and unused
   are disabled there until their IR builder handles Go 1.27's standard library.

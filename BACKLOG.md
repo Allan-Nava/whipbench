@@ -172,11 +172,14 @@ method and WB-5 is in `evals/`.**
   series would change meaning when WB-39's `stamp` source lands, and
   `internal/metrics/metrics_test.go` keeps the name shut until the label exists.
   <!-- wb: prio=med size=S labels=report -->
-- [ ] **WB-43 — Frame rate for Annex-B clips from the clip**: `clip.Load` reads H.264 at a
+- [x] **WB-43 — Frame rate for Annex-B clips from the clip**: `clip.Load` reads H.264 at a
   hard-coded 30 fps (`internal/clip/clip.go:231`), so a clip at another rate is paced and
   timestamped wrong; take the rate from the SPS timing information or a flag. One-way
   delay is safe either way — it counts the loop in frames (WB-38, D3) — the pacing is not.
-  <!-- wb: prio=low size=S labels=client -->
+  Done 2026-10-04: `internal/clip/sps.go` reads `timing_info` from the first SPS (profiles
+  with scaling lists, every POC type, emulation prevention), `publish --fps` gives or
+  overrides it, and a stream with neither is refused; checked on x264 clips at 24, 25,
+  29.97 and 60 fps. <!-- wb: prio=low size=S labels=client ver=main -->
 - [ ] **WB-44 — One-way delay split by keyframe and delta frame**: a keyframe spans many
   packets and a delta frame few, so their first-to-last spread differs; report both
   distributions beside the pooled figure, as WB-38's Questions phase deferred (Q3).

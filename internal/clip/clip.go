@@ -152,15 +152,30 @@ func ParseIVF(data []byte) (*Clip, error) {
 	return c, c.validate()
 }
 
-// ParseH264 reads an H.264 Annex-B elementary stream, which carries no timing, at
-// the given frame rate. Access units are delimited the way §7.4.1.2.3 of H.264
-// says: a non-VCL NAL (AUD, SPS, PPS, SEI) after a slice, or a slice whose
-// first_mb_in_slice is 0, starts a new picture.
+// ParseH264 reads an H.264 Annex-B elementary stream. The stream has no container
+// timing: at fps 0 the frame rate is the one its first SPS declares in the VUI
+// (sps.go), and a positive fps overrides it. Access units are delimited the way
+// §7.4.1.2.3 of H.264 says: a non-VCL NAL (AUD, SPS, PPS, SEI) after a slice, or a
+// slice whose first_mb_in_slice is 0, starts a new picture.
 func ParseH264(data []byte, fps int) (*Clip, error) {
-	if fps <= 0 || ClockRate%fps != 0 {
-		return nil, fmt.Errorf("h264: frame rate %d does not divide the 90 kHz clock", fps)
+	nals := SplitAnnexB(data)
+	var ticks uint32
+	switch {
+	case fps > 0:
+		if ClockRate%fps != 0 {
+			return nil, fmt.Errorf("h264: frame rate %d does not divide the 90 kHz clock", fps)
+		}
+		ticks = uint32(ClockRate / fps) //nolint:gosec // fps > 0
+	case fps == 0:
+		t, err := spsTicks(nals)
+		if err != nil {
+			return nil, err
+		}
+		ticks = t
+	default:
+		return nil, fmt.Errorf("h264: frame rate %d is not a frame rate", fps)
 	}
-	c := &Clip{Codec: H264, Ticks: uint32(ClockRate / fps)} //nolint:gosec // fps > 0
+	c := &Clip{Codec: H264, Ticks: ticks}
 	var cur []byte
 	curVCL, curKey := false, false
 	flush := func() {
@@ -169,7 +184,7 @@ func ParseH264(data []byte, fps int) (*Clip, error) {
 		}
 		cur, curVCL, curKey = nil, false, false
 	}
-	for _, nal := range SplitAnnexB(data) {
+	for _, nal := range nals {
 		if len(nal) == 0 {
 			continue
 		}
@@ -222,13 +237,23 @@ func SplitAnnexB(b []byte) [][]byte {
 	return out
 }
 
-// Load parses an embedded or on-disk clip by codec.
+// Load parses an embedded or on-disk clip by codec, at the rate the clip declares: the
+// IVF header's time base, or an H.264 stream's SPS.
 func Load(codec string, data []byte) (*Clip, error) {
+	return LoadAt(codec, data, 0)
+}
+
+// LoadAt is Load with an H.264 frame rate that overrides the SPS's, or 0 to use it. An
+// IVF file states its own rate, so fps applies to H.264 alone.
+func LoadAt(codec string, data []byte, fps int) (*Clip, error) {
+	if fps != 0 && codec != H264 {
+		return nil, fmt.Errorf("a frame rate applies to an h264 clip; a %s clip states its own", codec)
+	}
 	switch codec {
 	case VP8:
 		return ParseIVF(data)
 	case H264:
-		return ParseH264(data, 30)
+		return ParseH264(data, fps)
 	default:
 		return nil, fmt.Errorf("unknown codec %q (want %s or %s)", codec, VP8, H264)
 	}

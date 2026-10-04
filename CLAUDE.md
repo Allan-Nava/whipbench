@@ -15,7 +15,8 @@ definitions. One static binary, `CGO_ENABLED=0`, no browser.
 ```
 clips.go                 package whipbench: the two clips, embedded with go:embed
 cmd/whipbench/           the CLI: publish, view, run, version; exit 0/1/2/3
-internal/clip/           IVF and Annex-B parsing into loopable frames, RTP timestamps
+internal/clip/           IVF and Annex-B parsing into loopable frames, RTP timestamps; an
+                         H.264 stream's frame rate from its SPS VUI (sps.go)
 internal/rtc/            the one pion API every peer uses: codecs, abs-capture-time, ICE options
 internal/whip/           the HTTP half of WHIP/WHEP; errors that never carry a URL
 internal/publisher/      WHIP publisher: paced loop, send-time stamp per packet
