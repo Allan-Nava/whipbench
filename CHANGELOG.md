@@ -15,7 +15,8 @@ versions follow [SemVer](https://semver.org/). Items reference their `WB-n` back
   one-way delay block, per viewer and pooled, adds `uncertaintyMs` (only when available),
   `comparable` and `notComparableReason`. `report.Rankable` is the ranking rule WB-21 will
   call: both blocks comparable, both aggregates valid, the same clip (codec, loop frames)
-  and every scenario key but the endpoint hosts equal, uncertainty 1 ms or less. The
+  and every scenario key equal but the endpoint hosts, the name, the bearer variable and
+  the metrics address, uncertainty 1 ms or less. The
   Markdown shows topology and clock in its header and marks a figure that is not
   comparable, with the reason; a Method line states the definition. The schema stays
   `whipbench.report/v0`: keys were added, none changed meaning. Departures from the

@@ -228,11 +228,16 @@ func TestRankable(t *testing.T) {
 			r.Scenario.HoldSeconds = 30
 			return r
 		}, fp, false, "scenarios differ on holdSeconds"},
-		{"name differs", run, func() *Report {
+		{"name, bearer variable and metrics address are not compared", run, func() *Report {
 			r := run()
-			r.Scenario.Name = "other"
+			r.Scenario.Name, r.Scenario.BearerEnv, r.Scenario.Metrics = "other", "TOKEN", "127.0.0.1:9464"
 			return r
-		}, fp, false, "scenarios differ on name"},
+		}, fp, true, ""},
+		{"includeLoopback is compared", run, func() *Report {
+			r := run()
+			r.Scenario.IncludeLoopback = !r.Scenario.IncludeLoopback
+			return r
+		}, fp, false, "scenarios differ on includeLoopback"},
 		{"the WHIP host is not compared", run, func() *Report {
 			r := run()
 			r.Scenario.WHIP = "whip.test"

@@ -158,13 +158,15 @@ func Rankable(a, b *Report, source string) (bool, string) {
 	return true, ""
 }
 
-// scenarioDiff compares the two scenarios key by key, the endpoint hosts left out, and
-// returns the first key that differs.
+// scenarioDiff compares the two scenarios key by key and returns the first that differs.
+// Left out are the keys that label or reach a run without shaping the load: the endpoint
+// hosts — two servers are what a ranking compares — the name, the bearer variable and
+// the metrics address.
 func scenarioDiff(a, b *Report) (string, bool) {
 	m := [2]map[string]any{}
 	for i, r := range [2]*Report{a, b} {
 		s := r.Scenario
-		s.WHIP, s.WHEP = "", ""
+		s.WHIP, s.WHEP, s.Name, s.BearerEnv, s.Metrics = "", "", "", "", ""
 		raw, err := json.Marshal(s)
 		if err != nil {
 			return "an unreadable scenario", false
