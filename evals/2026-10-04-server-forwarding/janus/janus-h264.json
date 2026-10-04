@@ -1,0 +1,11 @@
+{
+  "name": "janus-local-h264",
+  "whip": "http://wb-janus:7080/whip/endpoint/h264",
+  "whep": "http://wb-janus:7090/whep/endpoint/h264",
+  "codec": "h264",
+  "viewers": 1,
+  "rampSeconds": 0,
+  "holdSeconds": 15,
+  "warmupSeconds": 2,
+  "joinTimeoutSeconds": 10
+}

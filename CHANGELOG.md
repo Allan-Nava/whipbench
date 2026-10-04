@@ -6,6 +6,11 @@ versions follow [SemVer](https://semver.org/). Items reference their `WB-n` back
 ## [Unreleased]
 
 ### Added
+- `evals/2026-10-04-server-forwarding.md` (WB-4): what MediaMTX, OvenMediaEngine, LiveKit
+  and Janus forward. No server negotiates abs-capture-time on either leg; Janus 1.1.2 behind
+  Meetecho's WHIP/WHEP servers forwards frames byte for byte with their markers, with the
+  image recipe and both reports beside it; OvenMediaEngine v0.21.0 has no WHEP and LiveKit
+  none without a transcoding ingress, so WB-45 now decides WB-20's server set.
 - Topology, clock and comparability in the report (WB-40): every report gains `topology`
   (`single-process` for a `run` that publishes, `split` otherwise) and `clock` (`method`,
   `offsetMs`, `uncertaintyMs`, `stepDetected`), and no host names. `run` is `monotonic`,

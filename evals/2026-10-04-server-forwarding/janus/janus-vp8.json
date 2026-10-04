@@ -1,0 +1,11 @@
+{
+  "name": "janus-local-vp8",
+  "whip": "http://wb-janus:7080/whip/endpoint/vp8",
+  "whep": "http://wb-janus:7090/whep/endpoint/vp8",
+  "codec": "vp8",
+  "viewers": 1,
+  "rampSeconds": 0,
+  "holdSeconds": 15,
+  "warmupSeconds": 2,
+  "joinTimeoutSeconds": 10
+}
