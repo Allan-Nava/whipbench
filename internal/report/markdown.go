@@ -35,7 +35,9 @@ func (r *Report) Markdown() string {
 	}
 	w("| scenario | %d viewers, ramp %gs%s, hold %gs, warmup %gs, join timeout %gs, codec %s |\n",
 		s.Viewers, s.RampSeconds, offset, s.HoldSeconds, s.WarmupSeconds, s.JoinTimeoutSeconds, s.Codec)
-	w("| client | %s/%s, %d CPUs, %s |\n\n", r.Client.OS, r.Client.Arch, r.Client.CPUs, r.Client.Go)
+	w("| client | %s/%s, %d CPUs, %s |\n", r.Client.OS, r.Client.Arch, r.Client.CPUs, r.Client.Go)
+	w("| topology | %s |\n", esc(r.Topology))
+	w("| clock | %s |\n\n", esc(clockLine(r.Clock)))
 
 	a := r.Aggregate
 	w("## Verdict\n\n**%s.**\n\n", esc(a.Verdict))
@@ -81,6 +83,9 @@ func (r *Report) Markdown() string {
 				b.Samples, b.CompleteFrames, b.Viewers, frameEnds(b.ViewersByFrameEnd), b.IncompleteFrames, b.UnmatchedFrames, b.Invalid, b.DuplicateFrames, b.LoopFrames, loop)
 			if b.Reason != "" {
 				w("One-way delay %s.\n\n", esc(b.Reason))
+			}
+			if !b.Comparable {
+				w("**One-way delay (fingerprint): not comparable** with another report's — %s.\n\n", esc(b.NotComparableReason))
 			}
 		}
 		if !a.PacketTransit.Available {
@@ -154,6 +159,21 @@ func (r *Report) Markdown() string {
 		w("- %s\n", esc(m))
 	}
 	return b.String()
+}
+
+// clockLine renders the clock as "monotonic, offset 0 ms ± 0 ms, no step".
+func clockLine(c Clock) string {
+	if c.Method == ClockNone || c.Method == "" {
+		return ClockNone + " — " + NoClockReason
+	}
+	line := c.Method
+	if c.OffsetMs != nil && c.UncertaintyMs != nil {
+		line += fmt.Sprintf(", offset %g ms ± %g ms", *c.OffsetMs, *c.UncertaintyMs)
+	}
+	if c.StepDetected {
+		return line + ", wall-clock step detected"
+	}
+	return line + ", no step"
 }
 
 func msOrDash(v *float64) string {

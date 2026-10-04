@@ -140,9 +140,11 @@ method and WB-5 is in `evals/`.**
   (WB-40). It ships under `oneWayDelay` with source `stamp` and retires packet transit,
   the 0.0.1 per-packet figure, with its `packetTransit` key and its Prometheus series.
   Open: whether pion's NACK responder resends the stored packet with its header
-  extensions, so that a retransmitted first packet still carries the stamp.
+  extensions, so that a retransmitted first packet still carries the stamp. It also owns
+  WB-40's deferred `sourcesDisagree` flag and the block's `rewritten` count, which need
+  the second source.
   <!-- wb: prio=med size=M labels=measurement,client -->
-- [ ] **WB-40 — Topology, clock and comparability in the report**: what makes two delay
+- [x] **WB-40 — Topology, clock and comparability in the report**: what makes two delay
   figures comparable (WB-1, D6 and D8). Every report gains `topology` (`single-process`
   or `split`) and `clock` (`method`, `offsetMs`, `uncertaintyMs`, `stepDetected`), and no
   host names. In `run` the method is `monotonic` for the fingerprint or `same-wall-clock`
@@ -154,7 +156,12 @@ method and WB-5 is in `evals/`.**
   Two reports rank only if both are comparable, share scenario, clip and source, and
   carry an uncertainty of 1 ms or less. `sourcesDisagree` flags a forwarded stamp whose
   p50 differs from the fingerprint's beyond the uncertainty; nothing is averaged, and
-  there is no merged best source. <!-- wb: prio=high size=M labels=report,measurement -->
+  there is no merged best source.
+  Done 2026-10-04: `topology` and `clock` on every report, `monotonic` with a step check in
+  `run` and `none` in `view` (WB-3 fills it), `uncertaintyMs`, `comparable` and
+  `notComparableReason` on every one-way delay block, and `report.Rankable` for WB-21;
+  `rewritten` and `sourcesDisagree` wait for WB-39's second source.
+  <!-- wb: prio=high size=M labels=report,measurement ver=main -->
 - [ ] **WB-41 — Sample window and retransmission beside delay**: what one-way delay is
   sampled over, and what sits next to it (WB-1, D7). A new scenario key
   `excludeFirstSeconds` (default 5) drops each viewer's first seconds, counted from its

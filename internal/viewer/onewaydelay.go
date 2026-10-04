@@ -36,6 +36,11 @@ type OneWayDelay struct {
 	// Ms summarises Hist; nil whenever the block is unavailable, so a zero is never
 	// mistaken for a measurement.
 	Ms *stats.Summary `json:"ms,omitempty"`
+	// UncertaintyMs, Comparable and NotComparableReason are set by the report from its
+	// clock (WB-40, D8), as in the pooled block; the uncertainty only when available.
+	UncertaintyMs       *float64 `json:"uncertaintyMs,omitempty"`
+	Comparable          bool     `json:"comparable"`
+	NotComparableReason string   `json:"notComparableReason,omitempty"`
 	// Hist holds the samples in ms; exported so the report and its tests can pool it.
 	Hist *stats.Histogram `json:"-"`
 }

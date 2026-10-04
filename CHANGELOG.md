@@ -6,6 +6,26 @@ versions follow [SemVer](https://semver.org/). Items reference their `WB-n` back
 ## [Unreleased]
 
 ### Added
+- Topology, clock and comparability in the report (WB-40): every report gains `topology`
+  (`single-process` for a `run` that publishes, `split` otherwise) and `clock` (`method`,
+  `offsetMs`, `uncertaintyMs`, `stepDetected`), and no host names. `run` is `monotonic`,
+  offset and uncertainty 0, with `stepDetected` set when wall-clock and monotonic elapsed
+  time differ by more than 0.1 ms; `view` is `none` and records no offset or uncertainty
+  until WB-3 measures the publisher's clock (`report.Input.Clock` is the seam). Each
+  one-way delay block, per viewer and pooled, adds `uncertaintyMs` (only when available),
+  `comparable` and `notComparableReason`. `report.Rankable` is the ranking rule WB-21 will
+  call: both blocks comparable, both aggregates valid, the same clip (codec, loop frames)
+  and every scenario key but the endpoint hosts equal, uncertainty 1 ms or less. The
+  Markdown shows topology and clock in its header and marks a figure that is not
+  comparable, with the reason; a Method line states the definition. The schema stays
+  `whipbench.report/v0`: keys were added, none changed meaning. Departures from the
+  backlog item: the block keeps WB-38's key names (`completeFrames`, `unmatchedFrames`)
+  rather than the design's shorter ones, since renaming would change their meaning for
+  a reader of earlier reports; `rewritten` belongs to the stamp source and arrives with
+  WB-39; `sourcesDisagree` needs two sources and is deferred to WB-39; `same-wall-clock`
+  is defined but unused until WB-39's stamp; a `run` without a WHIP endpoint publishes
+  nothing and is `split`, not `single-process`; and a ranking also refuses a report
+  whose aggregate has no verdict.
 - One-way delay per frame, by frame fingerprint, in `run` (WB-38): first-packet send to
   last-packet arrival, one sample per complete frame, on the one process's monotonic
   clock. A new report key `oneWayDelay` — a list of source blocks, source `fingerprint`,
