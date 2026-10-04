@@ -165,7 +165,8 @@ method and WB-5 is in `evals/`.**
   p50 differs from the fingerprint's beyond the uncertainty; nothing is averaged, and
   there is no merged best source.
   Done 2026-10-04: `topology` and `clock` on every report, `monotonic` with a step check in
-  `run` and `none` in `view` (WB-3 fills it), `uncertaintyMs`, `comparable` and
+  `run` — per one-second interval, beyond a 500 ppm slew, since the whole-run 0.1 ms bound
+  flagged a laptop's steady 2.8 ppm drift on every run — and `none` in `view` (WB-3 fills it), `uncertaintyMs`, `comparable` and
   `notComparableReason` on every one-way delay block, and `report.Rankable` for WB-21;
   `rewritten` and `sourcesDisagree` wait for WB-39's second source.
   <!-- wb: prio=high size=M labels=report,measurement ver=main -->

@@ -10,38 +10,62 @@ import (
 
 func TestStepped(t *testing.T) {
 	for _, c := range []struct {
+		name       string
 		wall, mono time.Duration
 		want       bool
 	}{
-		{time.Minute, time.Minute, false},
-		{time.Minute + 100*time.Microsecond, time.Minute, false}, // exactly 0.1 ms: not more than
-		{time.Minute + 101*time.Microsecond, time.Minute, true},
-		{time.Minute - 101*time.Microsecond, time.Minute, true}, // a step back counts too
-		{time.Minute + time.Second, time.Minute, true},
+		{"equal", time.Second, time.Second, false},
+		// One second allows 0.1 ms plus a 500 ppm slew: 0.6 ms.
+		{"0.6 ms in a second: the allowance itself", time.Second + 600*time.Microsecond, time.Second, false},
+		{"0.601 ms in a second", time.Second + 601*time.Microsecond, time.Second, true},
+		{"a step back counts too", time.Second - 601*time.Microsecond, time.Second, true},
+		{"a 1 ms step in a second", time.Second + time.Millisecond, time.Second, true},
+		// The drift measured on 2026-10-04, 2.8 ppm, over a 42 s run is 0.12 ms: the old
+		// whole-run bound of 0.1 ms called it a step; per interval it never is one.
+		{"2.8 ppm over 42 s", 42*time.Second + 118*time.Microsecond, 42 * time.Second, false},
+		{"2.8 ppm over one second", time.Second + 3*time.Microsecond, time.Second, false},
+		{"a 0.1 ms step in an instant", 100*time.Microsecond + 10*time.Millisecond, 10 * time.Millisecond, false},
+		{"0.2 ms in 10 ms", 200*time.Microsecond + 10*time.Millisecond, 10 * time.Millisecond, true},
 	} {
 		if got := stepped(c.wall, c.mono); got != c.want {
-			t.Errorf("stepped(%v, %v) = %v, want %v", c.wall, c.mono, got, c.want)
+			t.Errorf("%s: stepped(%v, %v) = %v, want %v", c.name, c.wall, c.mono, got, c.want)
 		}
 	}
 }
 
-func TestStepDetectedOnRealTimes(t *testing.T) {
+func TestStepWatch(t *testing.T) {
 	start := time.Now()
-	if StepDetected(start, start.Add(time.Minute)) {
-		t.Error("monotonic readings that agree with the wall clock reported a step")
+	w := NewStepWatch(start)
+	for i := 1; i <= 60; i++ {
+		w.Observe(start.Add(time.Duration(i) * time.Second))
 	}
-	// Without monotonic readings Go subtracts wall clocks on both sides: no step is seen.
-	if StepDetected(start.Round(0), start.Round(0).Add(time.Minute)) {
-		t.Error("times without a monotonic reading reported a step")
+	if w.Stepped() {
+		t.Error("readings whose wall and monotonic parts agree reported a step")
 	}
-	if StepDetected(start, start.Round(0).Add(time.Minute)) {
-		t.Error("one time without a monotonic reading reported a step")
+	// A reading without a monotonic part is subtracted as wall clock on both sides.
+	w = NewStepWatch(start.Round(0))
+	w.Observe(start.Round(0).Add(time.Minute))
+	if w.Stepped() {
+		t.Error("readings without a monotonic part reported a step")
+	}
+	// A wall clock stepped 1 s forward in one interval, after a minute of steady ones: one
+	// interval is enough, and later steady ones do not clear it.
+	w = NewStepWatch(start)
+	for i := 0; i < 60; i++ {
+		w.interval(time.Second+3*time.Microsecond, time.Second)
+	}
+	if w.Stepped() {
+		t.Error("a minute at 3 ppm reported a step")
+	}
+	w.interval(2*time.Second, time.Second)
+	w.interval(time.Second, time.Second)
+	if !w.Stepped() {
+		t.Error("a 1 s wall-clock jump went unseen")
 	}
 }
 
 func TestMonotonicClock(t *testing.T) {
-	start := time.Now()
-	c := MonotonicClock(start, start.Add(time.Second))
+	c := MonotonicClock(false)
 	if c.Method != ClockMonotonic || c.OffsetMs == nil || *c.OffsetMs != 0 || c.UncertaintyMs == nil || *c.UncertaintyMs != 0 || c.StepDetected {
 		t.Errorf("%+v", c)
 	}
@@ -96,8 +120,7 @@ func buildClock(command, topology string, c *Clock, withSamples bool) *Report {
 }
 
 func TestReportCarriesTopologyAndClock(t *testing.T) {
-	now := time.Now()
-	r := buildClock("run", TopologySingleProcess, MonotonicClock(now, now.Add(time.Minute)), true)
+	r := buildClock("run", TopologySingleProcess, MonotonicClock(false), true)
 	if r.Topology != TopologySingleProcess || r.Clock.Method != ClockMonotonic || r.Clock.StepDetected {
 		t.Errorf("run: %q %+v", r.Topology, r.Clock)
 	}
@@ -162,8 +185,7 @@ func TestAvailableButNotComparable(t *testing.T) {
 }
 
 func TestMarkdownShowsTheClock(t *testing.T) {
-	now := time.Now()
-	md := buildClock("run", TopologySingleProcess, MonotonicClock(now, now.Add(time.Minute)), true).Markdown()
+	md := buildClock("run", TopologySingleProcess, MonotonicClock(false), true).Markdown()
 	if !strings.Contains(md, "| clock | monotonic, offset 0 ms ± 0 ms, no step |") {
 		t.Errorf("markdown:\n%s", md)
 	}
@@ -173,9 +195,8 @@ func TestMarkdownShowsTheClock(t *testing.T) {
 }
 
 func TestRankable(t *testing.T) {
-	now := time.Now()
 	run := func() *Report {
-		return buildClock("run", TopologySingleProcess, MonotonicClock(now, now.Add(time.Minute)), true)
+		return buildClock("run", TopologySingleProcess, MonotonicClock(false), true)
 	}
 	fp := viewer.SourceFingerprint
 	for _, c := range []struct {
