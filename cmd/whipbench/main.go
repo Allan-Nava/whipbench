@@ -147,7 +147,7 @@ func rampOffsetFlags(fs *flag.FlagSet) func(sc *scenario.Scenario) {
 	}
 }
 
-func loadClip(codec, path string) (*clip.Clip, error) {
+func loadClip(codec, path string, fps int) (*clip.Clip, error) {
 	data := map[string][]byte{clip.VP8: whipbench.ClipVP8, clip.H264: whipbench.ClipH264}[codec]
 	if path != "" {
 		b, err := os.ReadFile(path) //nolint:gosec // the user names the file
@@ -156,7 +156,7 @@ func loadClip(codec, path string) (*clip.Clip, error) {
 		}
 		data = b
 	}
-	return clip.Load(codec, data)
+	return clip.LoadAt(codec, data, fps)
 }
 
 func logger(w io.Writer) func(string, ...any) {
@@ -169,7 +169,8 @@ func cmdPublish(ctx context.Context, args []string, stdout, stderr io.Writer) in
 	fs := newFlags("publish", stderr)
 	endpoint := fs.String("whip", "", "WHIP endpoint URL (required)")
 	codec := fs.String("codec", "vp8", "clip codec: vp8 or h264")
-	clipPath := fs.String("clip", "", "stream this file instead of the embedded clip (IVF for vp8, Annex-B at 30 fps for h264)")
+	clipPath := fs.String("clip", "", "stream this file instead of the embedded clip (IVF for vp8, Annex-B for h264, at the rate the file declares)")
+	fps := fs.Int("fps", 0, "frame rate of an h264 clip, over the one its SPS declares; needed when the SPS declares none")
 	duration := fs.Duration("duration", 0, "stop after this long; 0 publishes until interrupted")
 	bearerEnv := fs.String("bearer-env", "", "name of an environment variable holding a bearer token")
 	loopback := fs.Bool("include-loopback", false, "add loopback ICE candidates (a server in a local container)")
@@ -186,13 +187,13 @@ func cmdPublish(ctx context.Context, args []string, stdout, stderr io.Writer) in
 		fmt.Fprintln(stderr, "whipbench publish:", err)
 		return exitUsage
 	}
-	c, err := loadClip(*codec, *clipPath)
+	c, err := loadClip(*codec, *clipPath, *fps)
 	if err != nil {
 		fmt.Fprintln(stderr, "whipbench publish:", err)
 		return exitUsage
 	}
 	logf := logger(stderr)
-	logf("publishing %s (%d frames, %.0f fps, keyframe every %d frames) to %s",
+	logf("publishing %s (%d frames, %.4g fps, keyframe every %d frames) to %s",
 		c.Codec, len(c.Frames), float64(time.Second)/float64(c.FrameDuration()), c.KeyframeInterval(), whip.Host(*endpoint))
 	pub, err := publisher.Connect(ctx, publisher.Config{
 		WHIP: *endpoint, Bearer: bearer, Clip: c, RTC: rtc.Options{IncludeLoopback: *loopback}, NoStamp: *noStamp,
@@ -275,7 +276,7 @@ func cmdRun(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	}
 	var c *clip.Clip
 	if sc.WHIP != "" {
-		if c, err = loadClip(sc.Codec, ""); err != nil {
+		if c, err = loadClip(sc.Codec, "", 0); err != nil {
 			fmt.Fprintln(stderr, "whipbench run:", err)
 			return exitError
 		}
