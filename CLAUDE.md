@@ -27,7 +27,8 @@ internal/rtpstats/       loss, jitter, keyframes, stalls — pure arithmetic (RF
 internal/stats/          nearest-rank summaries and the mergeable delay histogram
 internal/scenario/       the scenario file, defaults, validation, the ramp and its seeded offsets (WB-8)
 internal/runner/         one run: publisher, warmup, ramp, hold, timeline, metrics server
-internal/report/         JSON + Markdown, hosts only, the no-verdict rule
+internal/report/         JSON + Markdown, hosts only, the no-verdict rule; topology, clock and
+                         comparability, and the ranking rule (clock.go, WB-40)
 internal/metrics/        live counters and the hand-written Prometheus exposition
 internal/testserver/     in-process WHIP/WHEP relay for the end-to-end tests
 internal/version/        the version string reports carry
@@ -56,7 +57,9 @@ Do not weaken these; they are what makes a number from whipbench worth quoting.
    report, an error message or the console. `whip.Host` and `whip.Scrub` are the only
    ways out; the tests assert it on real round trips.
 5. **Packet transit and one-way delay are network plus server, not glass-to-glass**,
-   and they need one clock or synchronised clocks. No metric is called "latency" (WB-1);
+   and they need one clock or synchronised clocks; the report's `topology` and `clock`
+   say which, and a block is ranked only when `comparable` (`report.Rankable`, WB-40).
+   No metric is called "latency" (WB-1);
    one-way delay is WB-38, built, in `run` only; capture-to-decode is WB-2, not
    implemented yet.
 6. **Pure Go, no cgo.** A decoder in the viewer (WB-2) has to respect it or argue

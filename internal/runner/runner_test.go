@@ -137,6 +137,13 @@ func TestRoundTripVP8(t *testing.T) {
 	if p.LoopMinMs == nil || *p.LoopMinMs <= 3000 {
 		t.Errorf("loopMinMs %v, want > 3000", p.LoopMinMs)
 	}
+	// WB-40: one process, one monotonic clock, so the figure is comparable.
+	if rep.Topology != report.TopologySingleProcess || rep.Clock.Method != report.ClockMonotonic || rep.Clock.UncertaintyMs == nil {
+		t.Errorf("topology %q, clock %+v", rep.Topology, rep.Clock)
+	}
+	if !p.Comparable || p.UncertaintyMs == nil || *p.UncertaintyMs != 0 {
+		t.Errorf("a single-process fingerprint figure must be comparable: %+v", p)
+	}
 	checkFingerprintViewers(t, rep)
 }
 

@@ -83,9 +83,20 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 	}
 	defer stopMetrics()
 
-	in := report.Input{Command: opt.Command, Version: version.String(), StartedAt: time.Now(), Scenario: sc}
+	in := report.Input{Command: opt.Command, Version: version.String(), StartedAt: time.Now(), Scenario: sc,
+		Topology: report.TopologySplit}
 	if table != nil {
 		in.Fingerprint = &report.Fingerprint{DuplicateFrames: table.DuplicateFrames(), LoopFrames: table.Frames()}
+		in.Topology = report.TopologySingleProcess
+	}
+	// finish stamps the end; a run that publishes reads both ends on this process's
+	// monotonic clock (WB-40). A split run leaves Clock nil — method none — until WB-3's
+	// exchange measures the publisher's clock and sets it here.
+	finish := func() {
+		in.FinishedAt = time.Now()
+		if in.Topology == report.TopologySingleProcess {
+			in.Clock = report.MonotonicClock(in.StartedAt, in.FinishedAt)
+		}
 	}
 
 	// The publisher.
@@ -100,7 +111,7 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 		if err != nil {
 			res := pub.Result()
 			in.Publisher = &res
-			in.FinishedAt = time.Now()
+			finish()
 			logf("publisher failed: %s", res.Error)
 			return report.Build(in), nil
 		}
@@ -163,7 +174,7 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 		res := <-pubDone
 		in.Publisher = &res
 	}
-	in.FinishedAt = time.Now()
+	finish()
 	in.Interrupted = ctx.Err() != nil
 	if in.Fingerprint != nil {
 		if d, ok := sendLog.LoopMin(); ok {
