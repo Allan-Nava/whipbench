@@ -82,9 +82,14 @@ func assertNoSecrets(t *testing.T, rep *report.Report) {
 	}
 }
 
+// base is a short run. Its one-way delay window is 1 s, not the default 5, so that a 3 s
+// hold both excludes frames and samples them (WB-41).
 func base(codec string, viewers int) scenario.Scenario {
-	return scenario.Scenario{Name: "test", Codec: codec, Viewers: viewers, RampSeconds: 1, HoldSeconds: 3, WarmupSeconds: 0.5, JoinTimeoutSeconds: 5}
+	return scenario.Scenario{Name: "test", Codec: codec, Viewers: viewers, RampSeconds: 1, HoldSeconds: 3, WarmupSeconds: 0.5, JoinTimeoutSeconds: 5,
+		ExcludeFirstSeconds: seconds(1)}
 }
+
+func seconds(v float64) *float64 { return &v }
 
 func TestRoundTripVP8(t *testing.T) {
 	t.Parallel()
@@ -151,9 +156,24 @@ func TestRoundTripVP8(t *testing.T) {
 }
 
 // checkFingerprintViewers asserts every viewer carries one available fingerprint block
-// that found frame ends by marker and has neither invalid nor unmatched frames.
+// that found frame ends by marker and has neither invalid nor unmatched frames, that its
+// complete frames add up (the clip has no duplicates), and that it excluded frames
+// exactly when the scenario has a window (WB-41); the same for the pooled block.
 func checkFingerprintViewers(t *testing.T, rep *report.Report) {
 	t.Helper()
+	window := rep.Scenario.ExcludeFirst() > 0
+	accounts := func(who string, complete, samples, invalid, unmatched, excluded, late uint64) {
+		t.Helper()
+		if complete != samples+invalid+unmatched+excluded {
+			t.Errorf("%s: %d complete frames != %d samples + %d invalid + %d unmatched + %d excluded",
+				who, complete, samples, invalid, unmatched, excluded)
+		}
+		if window != (excluded > 0) || late > complete {
+			t.Errorf("%s: %d excluded, %d completed late, with a window of %v", who, excluded, late, rep.Scenario.ExcludeFirst())
+		}
+	}
+	p := rep.Aggregate.FingerprintDelay()
+	accounts("pooled", p.CompleteFrames, p.Samples, p.Invalid, p.UnmatchedFrames, p.ExcludedFrames, p.LateCompletedFrames)
 	for _, v := range rep.Viewers {
 		if len(v.OneWayDelay) != 1 {
 			t.Errorf("viewer %d: %d one-way delay blocks, want 1", v.ID, len(v.OneWayDelay))
@@ -164,6 +184,7 @@ func checkFingerprintViewers(t *testing.T, rep *report.Report) {
 			b.Samples == 0 || b.Invalid != 0 || b.UnmatchedFrames != 0 {
 			t.Errorf("viewer %d: one-way delay block %+v", v.ID, b)
 		}
+		accounts(fmt.Sprintf("viewer %d", v.ID), b.CompleteFrames, b.Samples, b.Invalid, b.UnmatchedFrames, b.ExcludedFrames, b.LateCompletedFrames)
 		checkFrameKinds(t, fmt.Sprintf("viewer %d", v.ID), b.Samples, b.Keyframes, b.DeltaFrames)
 	}
 }
@@ -207,7 +228,12 @@ func TestRampOffsetsReachTheReport(t *testing.T) {
 
 func TestRoundTripH264(t *testing.T) {
 	t.Parallel()
-	rep := run(t, testserver.Options{}, base("h264", 2), "")
+	sc := base("h264", 2)
+	sc.ExcludeFirstSeconds = seconds(0) // WB-41: 0 samples from the first frame
+	rep := run(t, testserver.Options{}, sc, "")
+	if w := rep.Scenario.ExcludeFirstSeconds; w == nil || *w != 0 {
+		t.Fatalf("the report must record an explicit 0 window, got %v", w)
+	}
 	if !rep.Aggregate.Valid || rep.Aggregate.Joined != 2 {
 		t.Fatalf("aggregate: %+v\nerrors: %v", rep.Aggregate, rep.Errors)
 	}
@@ -332,7 +358,59 @@ func TestLossThroughALossyRelay(t *testing.T) {
 		if b.IncompleteFrames == 0 || !b.Available || b.Samples == 0 || b.Samples > b.CompleteFrames || b.UnmatchedFrames != 0 {
 			t.Errorf("viewer %d: one-way delay block %+v", v.ID, b)
 		}
-		t.Logf("viewer %d: received %d, lost %d, about %d dropped by the relay", v.ID, v.RTP.Received, v.RTP.Lost, (v.RTP.Received+v.RTP.Lost)/50)
+		// WB-41: the viewer asks for every gap, and the relay, which dropped the packet
+		// before its NACK responder saw it, cannot answer.
+		if v.NACKsSent == 0 || b.LateCompletedFrames != 0 {
+			t.Errorf("viewer %d: %d NACKs sent, %d frames completed late; want some, and none", v.ID, v.NACKsSent, b.LateCompletedFrames)
+		}
+		t.Logf("viewer %d: received %d, lost %d, about %d dropped by the relay, %d NACKs sent", v.ID, v.RTP.Received, v.RTP.Lost, (v.RTP.Received+v.RTP.Lost)/50, v.NACKsSent)
+	}
+}
+
+// WB-41: a relay that loses every 50th packet on the wire and answers the NACK for it.
+// The retransmission arrives on the original sequence number, so the viewer counts it as
+// received — lost stays 0 — and the frame it completes, after its marker, as completed
+// late; nothing is given up. The NACKs that brought the packets back are counted.
+func TestRetransmissionThroughALosingRelay(t *testing.T) {
+	t.Parallel()
+	rep := run(t, testserver.Options{LoseEvery: 50}, base("vp8", 2), "")
+	if !rep.Aggregate.Valid {
+		t.Fatalf("aggregate: %+v\nerrors: %v", rep.Aggregate, rep.Errors)
+	}
+	for _, v := range rep.Viewers {
+		if len(v.OneWayDelay) != 1 {
+			t.Fatalf("viewer %d: %d one-way delay blocks, want 1", v.ID, len(v.OneWayDelay))
+		}
+		b := v.OneWayDelay[0]
+		lostOnWire := (v.RTP.Received + v.RTP.Lost) / 50
+		if v.RTP.Lost != 0 || v.RTP.TooLate != 0 || v.NACKsSent == 0 || b.LateCompletedFrames == 0 || b.IncompleteFrames != 0 {
+			t.Errorf("viewer %d: lost %d, tooLate %d, %d NACKs sent, %d completed late, %d incomplete; want 0, 0, some, some, 0",
+				v.ID, v.RTP.Lost, v.RTP.TooLate, v.NACKsSent, b.LateCompletedFrames, b.IncompleteFrames)
+		}
+		t.Logf("viewer %d: received %d, about %d lost on the wire, %d NACKs sent, %d of %d frames completed late",
+			v.ID, v.RTP.Received, lostOnWire, v.NACKsSent, b.LateCompletedFrames, b.CompleteFrames)
+	}
+	checkFingerprintViewers(t, rep)
+	if a := rep.Aggregate; a.NACKsSent != rep.Viewers[0].NACKsSent+rep.Viewers[1].NACKsSent || a.PacketsLost != 0 {
+		t.Errorf("aggregate: %d NACKs sent, %d lost", a.NACKsSent, a.PacketsLost)
+	}
+}
+
+// WB-41: a window longer than every viewer's stay leaves no sample, and the report says
+// why instead of a number.
+func TestWindowLongerThanTheRunSamplesNothing(t *testing.T) {
+	t.Parallel()
+	sc := base("vp8", 2)
+	sc.ExcludeFirstSeconds = seconds(30)
+	rep := run(t, testserver.Options{}, sc, "")
+	p := rep.Aggregate.FingerprintDelay()
+	if p.Available || p.Ms != nil || p.Samples != 0 || p.ExcludedFrames == 0 || p.ExcludedFrames != p.CompleteFrames {
+		t.Fatalf("pooled block: %+v", p)
+	}
+	for _, v := range rep.Viewers {
+		if b := v.OneWayDelay[0]; b.Available || !strings.Contains(b.Reason, "excluded") {
+			t.Errorf("viewer %d: %+v", v.ID, b)
+		}
 	}
 }
 

@@ -60,6 +60,10 @@ func TestOneWayDelaySeriesCountsTheReportsSamples(t *testing.T) {
 		}
 	}
 	d := a.FingerprintDelay()
+	// WB-41: base's 1 s window excluded frames, and the live series left them out too.
+	if d.ExcludedFrames == 0 {
+		t.Errorf("no frame excluded: %+v", d)
+	}
 	if perViewer == 0 || d.Samples != perViewer {
 		t.Fatalf("samples: %d pooled, %d over the viewers' blocks", d.Samples, perViewer)
 	}

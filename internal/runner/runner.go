@@ -203,7 +203,7 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 			r := viewer.Run(vctx, i, viewer.Config{
 				WHEP: sc.WHEP, Bearer: opt.Bearer, RTC: rtcOpt, HTTP: opt.HTTP,
 				JoinTimeout: sc.JoinTimeout(), Stall: sc.Stall(), Live: live,
-				Frames: table, SendLog: sendLog,
+				Frames: table, SendLog: sendLog, ExcludeFirst: sc.ExcludeFirst(),
 			})
 			r.StartOffsetMs = ms(starts[i])
 			r.RampOffsetMs = offset

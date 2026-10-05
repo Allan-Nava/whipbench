@@ -162,7 +162,7 @@ func buildWithoutASendLog() *Report {
 	return buildDelay("view", nil, viewers(3, 0))
 }
 
-const noValidSample = "no valid sample: 5 complete frames (5 unmatched, 0 invalid), 0 incomplete"
+const noValidSample = "no valid sample: 5 complete frames (5 unmatched, 0 invalid, 0 excluded), 0 incomplete"
 
 func TestOneWayDelayBlocks(t *testing.T) {
 	r := buildBlocks()
@@ -488,5 +488,75 @@ func TestReportWithoutTheRampOffsetIsUnchanged(t *testing.T) {
 	}
 	if len(r.Method) != len(Method) {
 		t.Errorf("method lines %v", r.Method)
+	}
+}
+
+// WB-41: excludedFrames and lateCompletedFrames pool like the other counts, nacksSent sums
+// over the joined viewers, a viewer whose every frame fell inside the window has no
+// sample and says so, and the Markdown prints the window, the late frames and the NACKs.
+func TestWindowAndRetransmissionPool(t *testing.T) {
+	vs := viewers(10, 1) // viewer 0 failed, which leaves the run valid; its NACKs are not summed
+	vs[0].NACKsSent = 100
+	vs[1].OneWayDelay = []viewer.OneWayDelay{{Source: "fingerprint", FrameEnd: "marker", CompleteFrames: 5,
+		ExcludedFrames: 2, LateCompletedFrames: 1, Hist: hist(10, 20, 30)}}
+	vs[1].NACKsSent = 4
+	vs[2].OneWayDelay = []viewer.OneWayDelay{{FrameEnd: "marker", CompleteFrames: 3, Invalid: 1,
+		ExcludedFrames: 1, LateCompletedFrames: 2, Hist: hist(40)}}
+	vs[2].NACKsSent = 3
+	vs[3].OneWayDelay = []viewer.OneWayDelay{{CompleteFrames: 6, ExcludedFrames: 6, Hist: hist()}}
+	r := buildDelay("run", &Fingerprint{LoopFrames: 120}, vs)
+	p := r.Aggregate.FingerprintDelay()
+	if p.CompleteFrames != 14 || p.ExcludedFrames != 9 || p.LateCompletedFrames != 3 || p.Samples != 4 || p.Invalid != 1 {
+		t.Errorf("pooled counts: %+v", p)
+	}
+	// The accounting adds up per viewer and pooled (the clip here has no duplicates).
+	for _, v := range r.Viewers[1:4] {
+		b := v.OneWayDelay[0]
+		if b.CompleteFrames != b.Samples+b.Invalid+b.UnmatchedFrames+b.ExcludedFrames {
+			t.Errorf("viewer %d: %+v does not add up", v.ID, b)
+		}
+	}
+	if p.CompleteFrames != p.Samples+p.Invalid+p.UnmatchedFrames+p.ExcludedFrames {
+		t.Errorf("pooled %+v does not add up", p)
+	}
+	if r.Aggregate.NACKsSent != 7 {
+		t.Errorf("nacksSent %d, want 7 (the joined viewers only)", r.Aggregate.NACKsSent)
+	}
+	if b := r.Viewers[3].OneWayDelay[0]; b.Available || b.Ms != nil ||
+		b.Reason != "no valid sample: 6 complete frames (0 unmatched, 0 invalid, 6 excluded), 0 incomplete" {
+		t.Errorf("a viewer with every frame inside the window: %+v", b)
+	}
+	js, err := r.JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"excludedFrames": 9`, `"lateCompletedFrames": 3`, `"nacksSent": 7`, `"nacksSent": 4`} {
+		if !strings.Contains(string(js), want) {
+			t.Errorf("JSON misses %s", want)
+		}
+	}
+	md := r.Markdown()
+	for _, want := range []string{
+		"exclude first 5s", "9 excluded as inside each viewer's first 5s", "3 frames completed late, with 7 NACKs sent",
+		"7 NACKs sent, 0 stalls", "| loss | NACKs |",
+	} {
+		if !strings.Contains(md, want) {
+			t.Errorf("Markdown misses %q:\n%s", want, md)
+		}
+	}
+}
+
+// WB-41, D7: the histogram's resolution is stated as the Method line states it, and a
+// delay prints to 0.1 ms.
+func TestMethodStatesTheHistogramResolution(t *testing.T) {
+	if !strings.Contains(OneWayDelayMethod, "±0.5 % of value") || !strings.Contains(OneWayDelayMethod, "printed to 0.1 ms") {
+		t.Errorf("OneWayDelayMethod does not state the resolution: %s", OneWayDelayMethod)
+	}
+	if !strings.Contains(OneWayDelayMethod, "excludeFirstSeconds (default 5)") || scenario.DefaultExcludeFirst != 5 {
+		t.Errorf("OneWayDelayMethod and scenario.DefaultExcludeFirst disagree on the window")
+	}
+	md := buildBlocks().Markdown()
+	if !strings.Contains(md, "| one-way delay (fingerprint, per frame) | 2 | 10.0 ms |") {
+		t.Errorf("a delay must print to 0.1 ms:\n%s", md)
 	}
 }

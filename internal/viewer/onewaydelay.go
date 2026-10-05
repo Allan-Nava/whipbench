@@ -12,10 +12,11 @@ const SourceFingerprint = "fingerprint"
 // is finished one way.
 //
 // The counts account for every complete frame: CompleteFrames = Samples + Invalid +
-// UnmatchedFrames + the frames whose fingerprint is a clip duplicate, which are never
-// sampled because their bytes cannot say which clip frame was sent. Every sample is also
-// recorded in exactly one of KeyHist and DeltaHist, by the kind of the clip frame it
-// matched, so Keyframes.Samples + DeltaFrames.Samples = Samples (WB-44).
+// UnmatchedFrames + ExcludedFrames + the frames whose fingerprint is a clip duplicate,
+// which are never sampled because their bytes cannot say which clip frame was sent.
+// LateCompletedFrames is a subset of CompleteFrames, inside the window or not (WB-41).
+// Every sample is also recorded in exactly one of KeyHist and DeltaHist, by the kind of
+// the clip frame it matched, so Keyframes.Samples + DeltaFrames.Samples = Samples (WB-44).
 type OneWayDelay struct {
 	// Source names where the send instant came from; SourceFingerprint for WB-38.
 	Source string `json:"source"`
@@ -35,6 +36,13 @@ type OneWayDelay struct {
 	Samples         uint64 `json:"samples"`
 	Invalid         uint64 `json:"invalid"`
 	UnmatchedFrames uint64 `json:"unmatchedFrames"`
+	// ExcludedFrames were complete but their first packet arrived inside the scenario's
+	// excludeFirstSeconds of the viewer's first RTP packet, so they were never sampled
+	// (WB-41). LateCompletedFrames are complete frames one of whose packets arrived after
+	// their last: a gap filled after the end of the frame had arrived, by a NACK
+	// retransmission or by reordering. Their samples still end at the last packet.
+	ExcludedFrames      uint64 `json:"excludedFrames"`
+	LateCompletedFrames uint64 `json:"lateCompletedFrames"`
 	// Ms summarises Hist; nil whenever the block is unavailable, so a zero is never
 	// mistaken for a measurement.
 	Ms *stats.Summary `json:"ms,omitempty"`

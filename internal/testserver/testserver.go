@@ -8,8 +8,8 @@
 // — abs-capture-time — from the publisher's id to each viewer's, and drops the rest
 // (they belong to the publisher leg's transport). Options make it behave like the
 // servers a benchmark has to survive: one that strips the extension, one that
-// refuses viewers beyond a limit, one that drops packets, one that clears the
-// marker.
+// refuses viewers beyond a limit, one that drops packets for good, one that loses
+// them on the wire and resends them on NACK, one that clears the marker.
 //
 // It is not a production server and never listens on anything but what the test
 // hands it (an httptest server on loopback).
@@ -19,11 +19,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
 
 	"github.com/Allan-Nava/whipbench/internal/rtc"
+	"github.com/pion/interceptor"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v4"
 )
@@ -35,8 +37,13 @@ type Options struct {
 	StripExtensions bool
 	// MaxViewers refuses viewers beyond this many with 503; 0 is unlimited.
 	MaxViewers int
-	// DropEvery drops every n-th forwarded packet on every viewer leg; 0 drops none.
+	// DropEvery drops every n-th forwarded packet on every viewer leg before the leg
+	// sees it, so a NACK for it cannot be answered; 0 drops none.
 	DropEvery int
+	// LoseEvery loses every n-th packet of every viewer leg on the wire, beneath pion's
+	// NACK responder, which has kept a copy: the viewer's NACK brings it back as a
+	// retransmission on the original sequence number (WB-41); 0 loses none.
+	LoseEvery int
 	// ClearMarker forwards every packet with the marker bit cleared, like a server
 	// that does not keep it (D5).
 	ClearMarker bool
@@ -70,6 +77,9 @@ type viewerLeg struct {
 
 // New returns a relay.
 func New(opt Options) (*Server, error) {
+	if opt.LoseEvery > 0 {
+		opt.RTC.Interceptors = append(slices.Clone(opt.RTC.Interceptors), loser{every: uint64(opt.LoseEvery)}) //nolint:gosec // positive
+	}
 	api, err := rtc.NewAPI(opt.RTC)
 	if err != nil {
 		return nil, err
@@ -317,4 +327,43 @@ func drain(r *webrtc.RTPReceiver) {
 			return
 		}
 	}
+}
+
+// loser is LoseEvery's interceptor. Registered ahead of pion's defaults, its stream
+// writer sits beneath the NACK responder's: the responder stores every packet before it
+// gets here, and its resend comes back through the same writer, which lets a lost
+// sequence number through the second time.
+type loser struct{ every uint64 }
+
+func (l loser) NewInterceptor(string) (interceptor.Interceptor, error) {
+	return &loseStreams{every: l.every}, nil
+}
+
+type loseStreams struct {
+	interceptor.NoOp
+	every uint64
+}
+
+func (l *loseStreams) BindLocalStream(_ *interceptor.StreamInfo, w interceptor.RTPWriter) interceptor.RTPWriter {
+	var mu sync.Mutex
+	var n uint64
+	lost := map[uint16]bool{}
+	return interceptor.RTPWriterFunc(func(h *rtp.Header, payload []byte, a interceptor.Attributes) (int, error) {
+		mu.Lock()
+		if lost[h.SequenceNumber] { // the NACK responder's resend
+			delete(lost, h.SequenceNumber)
+			mu.Unlock()
+			return w.Write(h, payload, a)
+		}
+		n++
+		drop := n%l.every == 0
+		if drop {
+			lost[h.SequenceNumber] = true
+		}
+		mu.Unlock()
+		if drop {
+			return len(payload), nil
+		}
+		return w.Write(h, payload, a)
+	})
 }

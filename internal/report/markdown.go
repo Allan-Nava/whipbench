@@ -33,8 +33,8 @@ func (r *Report) Markdown() string {
 	if s.RampOffsetSeed != nil {
 		offset = fmt.Sprintf(", ramp offset seed %d, up to %gs", *s.RampOffsetSeed, s.RampOffsetMaxSeconds)
 	}
-	w("| scenario | %d viewers, ramp %gs%s, hold %gs, warmup %gs, join timeout %gs, codec %s |\n",
-		s.Viewers, s.RampSeconds, offset, s.HoldSeconds, s.WarmupSeconds, s.JoinTimeoutSeconds, s.Codec)
+	w("| scenario | %d viewers, ramp %gs%s, hold %gs, warmup %gs, join timeout %gs, exclude first %gs, codec %s |\n",
+		s.Viewers, s.RampSeconds, offset, s.HoldSeconds, s.WarmupSeconds, s.JoinTimeoutSeconds, s.ExcludeFirst().Seconds(), s.Codec)
 	w("| client | %s/%s, %d CPUs, %s |\n", r.Client.OS, r.Client.Arch, r.Client.CPUs, r.Client.Go)
 	b.WriteString(resourcesRow(r.Client.Resources))
 	w("| topology | %s |\n", esc(r.Topology))
@@ -91,8 +91,9 @@ func (r *Report) Markdown() string {
 			if b.LoopMinMs != nil {
 				loop = fmt.Sprintf(", sent in %.0f ms at the fastest", *b.LoopMinMs)
 			}
-			w("One-way delay (fingerprint): %d samples from %d complete frames on %d viewers (frame end: %s); %d incomplete, %d unmatched, %d invalid; %d duplicate clip frames never sampled; loop %d frames%s.\n\n",
-				b.Samples, b.CompleteFrames, b.Viewers, frameEnds(b.ViewersByFrameEnd), b.IncompleteFrames, b.UnmatchedFrames, b.Invalid, b.DuplicateFrames, b.LoopFrames, loop)
+			w("One-way delay (fingerprint): %d samples from %d complete frames on %d viewers (frame end: %s); %d incomplete, %d unmatched, %d invalid, %d excluded as inside each viewer's first %gs; %d duplicate clip frames never sampled; %d frames completed late, with %d NACKs sent; loop %d frames%s.\n\n",
+				b.Samples, b.CompleteFrames, b.Viewers, frameEnds(b.ViewersByFrameEnd), b.IncompleteFrames, b.UnmatchedFrames, b.Invalid,
+				b.ExcludedFrames, s.ExcludeFirst().Seconds(), b.DuplicateFrames, b.LateCompletedFrames, a.NACKsSent, b.LoopFrames, loop)
 			if b.Reason != "" {
 				w("One-way delay %s.\n\n", esc(b.Reason))
 			}
@@ -105,8 +106,8 @@ func (r *Report) Markdown() string {
 		} else if a.PacketTransit.Reason != "" {
 			w("Packet transit %s.\n\n", esc(a.PacketTransit.Reason))
 		}
-		w("Packets: %d received, %d lost (%.3f%% of expected), %d stalls across all viewers.\n\n",
-			a.PacketsReceived, a.PacketsLost, a.LossTotal, a.Stalls)
+		w("Packets: %d received, %d lost (%.3f%% of expected), %d NACKs sent, %d stalls across all viewers.\n\n",
+			a.PacketsReceived, a.PacketsLost, a.LossTotal, a.NACKsSent, a.Stalls)
 	}
 
 	if p := r.Publisher; p != nil {
@@ -137,8 +138,8 @@ func (r *Report) Markdown() string {
 	}
 
 	w("## Viewers\n\n")
-	w("| id | start | joined | first RTP | first keyframe | received | lost | loss | jitter | keyframe | stalls | delay p50 | delay p99 | transit p50 | transit p99 | error |\n")
-	w("|---:|---:|:---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|\n")
+	w("| id | start | joined | first RTP | first keyframe | received | lost | loss | NACKs | jitter | keyframe | stalls | delay p50 | delay p99 | transit p50 | transit p99 | error |\n")
+	w("|---:|---:|:---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|\n")
 	for _, v := range r.Viewers {
 		joined := "no"
 		if v.Joined {
@@ -162,9 +163,9 @@ func (r *Report) Markdown() string {
 		if v.RTP.Keyframes > 1 {
 			kf = fmt.Sprintf("%.2f s", v.RTP.KeyframeIntervalMeanS)
 		}
-		w("| %d | %.0f ms | %s | %s | %s | %d | %d | %.2f%% | %.2f ms | %s | %d | %s | %s | %s | %s | %s |\n",
+		w("| %d | %.0f ms | %s | %s | %s | %d | %d | %.2f%% | %d | %.2f ms | %s | %d | %s | %s | %s | %s | %s |\n",
 			v.ID, v.StartOffsetMs, joined, msOrDash(v.FirstRTPMs), msOrDash(v.FirstKeyframeMs),
-			v.RTP.Received, v.RTP.Lost, v.RTP.LossPercent, v.RTP.JitterMs, kf, v.RTP.Stalls, d50, d99, pt50, pt99, esc(v.ErrorKind))
+			v.RTP.Received, v.RTP.Lost, v.RTP.LossPercent, v.NACKsSent, v.RTP.JitterMs, kf, v.RTP.Stalls, d50, d99, pt50, pt99, esc(v.ErrorKind))
 	}
 	w("\n## Method\n\n")
 	for _, m := range r.Method {

@@ -186,7 +186,7 @@ method and WB-5 is in `evals/`.**
   `notComparableReason` on every one-way delay block, and `report.Rankable` for WB-21;
   `rewritten` and `sourcesDisagree` wait for WB-39's second source.
   <!-- wb: prio=high size=M labels=report,measurement ver=0.1.0 -->
-- [ ] **WB-41 — Sample window and retransmission beside delay**: what one-way delay is
+- [x] **WB-41 — Sample window and retransmission beside delay**: what one-way delay is
   sampled over, and what sits next to it (WB-1, D7). A new scenario key
   `excludeFirstSeconds` (default 5) drops each viewer's first seconds, counted from its
   own first RTP packet; `warmupSeconds` keeps its meaning. Beside one-way delay go the
@@ -196,7 +196,14 @@ method and WB-5 is in `evals/`.**
   1% histogram stays; the Method line says "±0.5 % of value" and values print to 0.1 ms.
   Open: whether the stats interceptor's NACK count means NACKs sent, and how recovered
   packets relate to `tooLate` in `internal/rtpstats/rtpstats.go`.
-  <!-- wb: prio=med size=M labels=measurement,report -->
+  Done 2026-10-05: `excludeFirstSeconds` (default 5, 0 allowed) sets frames inside each
+  viewer's window aside in `excludedFrames`, for the report, the split and the live series
+  alike; every block counts `lateCompletedFrames` and every viewer `nacksSent`. Both open
+  questions settled from source: pion's stats interceptor never sees the NACK generator's
+  NACKs, which the default registration puts beneath it, so `rtc.NACKCounter` counts
+  them ahead of the defaults; a retransmission counts as received, never `tooLate`, so
+  `lost` is what never arrived.
+  <!-- wb: prio=med size=M labels=measurement,report ver=main -->
 - [x] **WB-42 — Live one-way delay series with a source label**: a Prometheus histogram of
   WB-38's per-frame figure, `whipbench_one_way_delay_seconds{source="fingerprint"}`, so a
   long run shows the headline while it runs. WB-38 opened none (its D8): an unlabelled

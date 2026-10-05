@@ -21,8 +21,18 @@
 // one. A frame's arrival is that of its last packet: the instant it became whole.
 //
 // Each Frame also carries the instant the reassembler found it complete, which can be
-// later than its arrival when a reordered packet fills a gap. Nothing reads it yet; it is
-// kept for WB-41 (D6).
+// later than its arrival when a reordered packet fills a gap, and the arrival of its first
+// packet, from which a viewer's sample window is judged (WB-41).
+//
+// A frame is completed late when one of its packets arrived after its last packet — the
+// marker packet under the marker rule: a gap filled after the frame's end had arrived, by
+// a NACK retransmission or by reordering (WB-41). Its delay is still the arrival of its
+// last packet, so a late gap does not lengthen the sample; LateCompleted counts such
+// frames, so a reader can see how many samples a recovery stands behind. A frame whose
+// last packet is the one retransmitted is not late by this rule, and its arrival — so
+// its sample — is the retransmission's. Completed is not
+// the test, because it also waits for the packet that proves the head, which belongs to
+// the frame before, and under the timestamp rule for the next frame's first packet.
 package reassembler
 
 import (
@@ -54,7 +64,11 @@ type Frame struct {
 	Payload   []byte    // depacketised: the VP8 frame, or H.264 Annex-B (4-byte start codes); nil when Rejected
 	Rejected  bool      // the depacketiser refused it (STAP-B, MTAP, FU-B…): a server re-packetised it
 	Arrival   time.Time // t1: the arrival of the frame's last packet, its own arrival (D5)
-	Completed time.Time // when the reassembler found it complete; unused until WB-41 (D6)
+	Completed time.Time // when the reassembler found it complete (D6); no figure reads it
+	First     time.Time // the arrival of the first of its packets to arrive (WB-41)
+	// Late: a packet of the frame arrived after its last packet, so a gap was filled
+	// after its end had arrived (WB-41).
+	Late bool
 }
 
 // seen is what the reassembler remembers of every recent packet, closed frames included:
@@ -96,6 +110,7 @@ type Reassembler struct {
 
 	end        string
 	incomplete uint64
+	late       uint64
 	lastPrune  time.Time
 }
 
@@ -166,6 +181,11 @@ func (r *Reassembler) Push(p *rtp.Packet, arrival time.Time) []Frame {
 // excepted. Frames still pending when the viewer stops are not counted.
 func (r *Reassembler) Incomplete() uint64 { return r.incomplete }
 
+// LateCompleted returns how many complete frames had a packet arrive after their last
+// packet: a gap filled after the frame's end had arrived (WB-41). Rejected frames count
+// like any other complete frame.
+func (r *Reassembler) LateCompleted() uint64 { return r.late }
+
 // FrameEnd returns the frame-end rule in force, EndMarker or EndTimestamp, or "" until
 // the first frame completes.
 func (r *Reassembler) FrameEnd() string { return r.end }
@@ -216,7 +236,11 @@ func (r *Reassembler) complete(arrival time.Time) []Frame {
 		}
 		delete(r.pending, ts)
 		r.closed[ts] = arrival
-		out = append(out, r.depacketise(ts, f, arrival))
+		fr := r.depacketise(ts, f, arrival)
+		if fr.Late {
+			r.late++
+		}
+		out = append(out, fr)
 	}
 	return out
 }
@@ -261,7 +285,14 @@ func hasMarker(f *pending) bool {
 // depacketise runs f's payloads, lo to hi, through one fresh depacketiser, so that no
 // fragment of an earlier frame can leak into this one.
 func (r *Reassembler) depacketise(ts uint32, f *pending, arrival time.Time) Frame {
-	fr := Frame{Timestamp: ts, Arrival: f.pkts[f.hi].arrival, Completed: arrival}
+	last := f.pkts[f.hi].arrival
+	fr := Frame{Timestamp: ts, Arrival: last, Completed: arrival, First: f.first}
+	for _, p := range f.pkts {
+		if p.arrival.After(last) {
+			fr.Late = true
+			break
+		}
+	}
 	dep := r.newDep()
 	var payload []byte
 	for ext := f.lo; ext <= f.hi; ext++ {

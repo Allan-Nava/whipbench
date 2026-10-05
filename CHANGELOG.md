@@ -39,6 +39,31 @@ versions follow [SemVer](https://semver.org/). Items reference their `WB-n` back
   and a README on scraping a run and importing it; a test fails when the dashboard queries a
   name `/metrics` does not serve, and every series is now held to a HELP and a TYPE. Per-layer
   series wait for simulcast (WB-15), so WB-17 stays open. Schema still `whipbench.report/v0`.
+- Sample window and retransmission beside one-way delay (WB-41). A scenario key
+  `excludeFirstSeconds` (default 5, 0 allowed, negative refused) leaves out of the delay
+  samples every frame whose first packet arrived within that long of the viewer's own
+  first RTP packet; such frames are still hashed and matched, and count in a new
+  `excludedFrames`, so `completeFrames` = `samples` + `invalid` + `unmatchedFrames` +
+  `excludedFrames` + clip duplicates. The keyframe and delta-frame split and the live
+  series see the same samples; loss, jitter and join are not windowed. Beside the delay,
+  every block counts `lateCompletedFrames` — complete frames one of whose packets arrived
+  after the frame's last, a gap filled late by a NACK retransmission or by reordering —
+  and every viewer reports `nacksSent`, summed in the aggregate. pion's stats
+  interceptor cannot count those NACKs, because the default interceptors register the
+  NACK generator beneath it, so `rtc.NACKCounter` counts them from an interceptor
+  registered ahead of the defaults (`rtc.Options.Interceptors`). RTX stays unnegotiated.
+  The Method lines and the README say how a retransmitted packet is counted — received,
+  never `tooLate`, so `lost` is what never arrived — and that the histogram is ±0.5 % of
+  value, printed to 0.1 ms. The test relay gains `LoseEvery`, a loss its NACK responder
+  repairs. Schema still `whipbench.report/v0`.
+
+### Changed
+- A default run samples one-way delay differently from 0.1.0 (WB-41): `excludeFirstSeconds`
+  is a new key, so the schema stays v0, but it defaults to 5, and a 0.1.0 report and a
+  later one differ by that window unless the later one sets it to 0. The report records
+  the key in its scenario, so the two are never ranked against each other, and the
+  Markdown's scenario row, delay accounting line, packets line and viewer table gain the
+  window, the excluded and late frames, and the NACKs.
 
 ## [0.1.0] — 2026-10-05
 
