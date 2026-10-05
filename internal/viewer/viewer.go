@@ -397,6 +397,7 @@ func readLoop(track *webrtc.TrackRemote, pr *progress, live *metrics.Live, frame
 				} else {
 					pr.owd.DeltaHist.Add(v)
 				}
+				live.OneWayDelay(pr.owd.Source, ds[j]) // the same sample, live (WB-42)
 			case invalid:
 				pr.owd.Invalid++
 			case unmatched:

@@ -190,12 +190,16 @@ method and WB-5 is in `evals/`.**
   Open: whether the stats interceptor's NACK count means NACKs sent, and how recovered
   packets relate to `tooLate` in `internal/rtpstats/rtpstats.go`.
   <!-- wb: prio=med size=M labels=measurement,report -->
-- [ ] **WB-42 — Live one-way delay series with a source label**: a Prometheus histogram of
+- [x] **WB-42 — Live one-way delay series with a source label**: a Prometheus histogram of
   WB-38's per-frame figure, `whipbench_one_way_delay_seconds{source="fingerprint"}`, so a
   long run shows the headline while it runs. WB-38 opened none (its D8): an unlabelled
   series would change meaning when WB-39's `stamp` source lands, and
   `internal/metrics/metrics_test.go` keeps the name shut until the label exists.
-  <!-- wb: prio=med size=S labels=report -->
+  Done 2026-10-05: each viewer observes the sample where its report block takes it, on
+  buckets from 0.1 ms to 1 s, with the source values fixed in `metrics.OneWayDelaySources`
+  and no per-viewer label; a `view` declares the series with no sample, and the guard now
+  admits the name only with a known `source` label.
+  <!-- wb: prio=med size=S labels=report ver=main -->
 - [x] **WB-43 — Frame rate for Annex-B clips from the clip**: `clip.Load` reads H.264 at a
   hard-coded 30 fps (`internal/clip/clip.go:231`), so a clip at another rate is paced and
   timestamped wrong; take the rate from the SPS timing information or a flag. One-way

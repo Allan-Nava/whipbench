@@ -2,8 +2,13 @@
 // Prometheus text exposition format (version 0.0.4) at /metrics.
 //
 // It is written by hand rather than with the Prometheus client library: a dozen
-// counters and one histogram do not justify the dependency tree, and the format is
+// counters and two histograms do not justify the dependency tree, and the format is
 // a few lines of text. Every series is prefixed whipbench_.
+//
+// One-way delay (WB-42) is the one labelled series: whipbench_one_way_delay_seconds
+// carries source, the way the report's blocks do, so a second source (WB-39's stamp)
+// adds a label value instead of changing what an existing series means. There is no
+// per-viewer label.
 package metrics
 
 import (
@@ -13,10 +18,30 @@ import (
 	"net/http"
 	"strconv"
 	"sync/atomic"
+	"time"
 )
 
 // TransitBucketsMs are the upper bounds of the packet transit histogram.
 var TransitBucketsMs = []float64{1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000}
+
+// OneWayDelayBucketsMs are the upper bounds of the one-way delay histogram: the same
+// 1-2-5 ladder as TransitBucketsMs, from 0.1 ms to 1 s. A frame's delay on one machine
+// is under a millisecond at the median, and a frame still incomplete 1 s after its
+// first packet is never sampled, so above 1 s there is only +Inf.
+var OneWayDelayBucketsMs = [...]float64{0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000}
+
+// OneWayDelaySources are the values the source label may take, in exposition order:
+// "fingerprint" is WB-38's send instant (viewer.SourceFingerprint, which this package
+// cannot import). A sample from any other source is dropped, so the label's cardinality
+// is fixed here; WB-39 adds "stamp".
+var OneWayDelaySources = [...]string{"fingerprint"}
+
+// delayHist is one source's one-way delay histogram.
+type delayHist struct {
+	buckets [len(OneWayDelayBucketsMs)]atomic.Uint64
+	count   atomic.Uint64
+	sumNs   atomic.Uint64
+}
 
 // Live is the shared state of a run. All methods are safe for concurrent use; the
 // zero value is ready, and a nil *Live ignores every call, so code that records
@@ -36,6 +61,8 @@ type Live struct {
 	transitBuckets [12]atomic.Uint64 // len(TransitBucketsMs)
 	transitCount   atomic.Uint64
 	transitSumUs   atomic.Uint64
+
+	oneWayDelay [len(OneWayDelaySources)]delayHist
 }
 
 // Packet records one received packet of size n bytes.
@@ -60,6 +87,31 @@ func (l *Live) PacketTransit(ms float64) {
 	}
 	l.transitCount.Add(1)
 	l.transitSumUs.Add(uint64(ms * 1000))
+}
+
+// OneWayDelay records one valid one-way delay sample from source. The viewer calls it
+// exactly where its report block takes the sample, never for an invalid or unmatched
+// frame; a negative delay or an unknown source is dropped.
+func (l *Live) OneWayDelay(source string, d time.Duration) {
+	if l == nil || d < 0 {
+		return
+	}
+	for s, name := range OneWayDelaySources {
+		if name != source {
+			continue
+		}
+		h := &l.oneWayDelay[s]
+		ms := float64(d) / float64(time.Millisecond)
+		for i, b := range OneWayDelayBucketsMs {
+			if ms <= b {
+				h.buckets[i].Add(1)
+				break
+			}
+		}
+		h.count.Add(1)
+		h.sumNs.Add(uint64(d)) //nolint:gosec // non-negative
+		return
+	}
 }
 
 // Handler serves /metrics.
@@ -100,4 +152,20 @@ func (l *Live) Write(w io.Writer) {
 	n := l.transitCount.Load()
 	fmt.Fprintf(w, "%s_bucket{le=\"+Inf\"} %d\n%s_sum %s\n%s_count %d\n", h, n, h,
 		strconv.FormatFloat(float64(l.transitSumUs.Load())/1e6, 'g', -1, 64), h, n)
+
+	// Declared whether or not this process can observe it: a `view` has no send log, so
+	// its count stays 0, as packet transit's does when the extension is not negotiated.
+	const d = "whipbench_one_way_delay_seconds"
+	fmt.Fprintf(w, "# HELP %s One-way delay per frame: first-packet send to last-packet arrival, one sample per valid match, by source of the send instant (fingerprint: the publisher's send log, found by the frame's fingerprint). Network plus server plus both stacks, not glass-to-glass; observed only by a run that publishes.\n# TYPE %s histogram\n", d, d)
+	for s, src := range OneWayDelaySources {
+		dh := &l.oneWayDelay[s]
+		var cum uint64
+		for i, b := range OneWayDelayBucketsMs {
+			cum += dh.buckets[i].Load()
+			fmt.Fprintf(w, "%s_bucket{source=%q,le=\"%s\"} %d\n", d, src, strconv.FormatFloat(b/1000, 'g', -1, 64), cum)
+		}
+		n := dh.count.Load()
+		fmt.Fprintf(w, "%s_bucket{source=%q,le=\"+Inf\"} %d\n%s_sum{source=%q} %s\n%s_count{source=%q} %d\n", d, src, n, d, src,
+			strconv.FormatFloat(float64(dh.sumNs.Load())/1e9, 'g', -1, 64), d, src, n)
+	}
 }
