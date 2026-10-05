@@ -142,7 +142,9 @@ method and WB-5 is in `evals/`.**
   goroutines and heap in `/metrics` (`whipbench_client_*`) and in the report's
   `client.resources` (CPU seconds, utilisation over the cores, peak goroutines), and a
   Grafana dashboard in `examples/grafana/` held by a test to the names `/metrics` serves.
-  Still needed: per-layer series, which wait for simulcast's layers (WB-15).
+  Still needed: per-layer series, which wait for simulcast's layers (WB-15), and a loss
+  counter on `/metrics` once WB-41 settles what "lost" counts — the dashboard's loss panel
+  is an estimate from packets sent and received until then.
   <!-- wb: prio=med size=M labels=report -->
 - [ ] **WB-18 — Audio**: an Opus track in the clip and the viewers, with loss and jitter
   per track, and audio/video arrival skew. <!-- wb: prio=med size=M labels=client -->
