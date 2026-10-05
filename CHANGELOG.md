@@ -26,6 +26,19 @@ versions follow [SemVer](https://semver.org/). Items reference their `WB-n` back
   descriptive and never ranked, and the Markdown adds "one-way delay, keyframes" and
   "one-way delay, delta frames" under the pooled row. `fingerprint.Table.Key` says which
   clip frames are keyframes. Schema still `whipbench.report/v0`.
+- The client's own resources, half of WB-17: `/metrics` serves
+  `whipbench_client_cpu_seconds_total` (user plus system CPU time, getrusage on linux and
+  darwin; declared with no sample elsewhere, never a 0), `whipbench_client_goroutines` and
+  `whipbench_client_heap_bytes` (heap in use, through `runtime/metrics`, no stop-the-world),
+  read at scrape time from the new `internal/procstat`, standard library only. The report's
+  `client.resources` gives `cpuSeconds`, `cpuUtilisationPercent` (over wall time × the
+  client's CPUs) and `peakGoroutines`, sampled once a second by the timeline, with a Method
+  line saying they describe the whole process — publisher, viewers and reassembly — not the
+  server, and a `client resources` row in the Markdown. `examples/grafana/` has a dashboard
+  for Grafana 10+ over the existing series, with the Prometheus data source as a variable,
+  and a README on scraping a run and importing it; a test fails when the dashboard queries a
+  name `/metrics` does not serve, and every series is now held to a HELP and a TYPE. Per-layer
+  series wait for simulcast (WB-15), so WB-17 stays open. Schema still `whipbench.report/v0`.
 
 ## [0.1.0] — 2026-10-05
 

@@ -36,6 +36,7 @@ func (r *Report) Markdown() string {
 	w("| scenario | %d viewers, ramp %gs%s, hold %gs, warmup %gs, join timeout %gs, codec %s |\n",
 		s.Viewers, s.RampSeconds, offset, s.HoldSeconds, s.WarmupSeconds, s.JoinTimeoutSeconds, s.Codec)
 	w("| client | %s/%s, %d CPUs, %s |\n", r.Client.OS, r.Client.Arch, r.Client.CPUs, r.Client.Go)
+	b.WriteString(resourcesRow(r.Client.Resources))
 	w("| topology | %s |\n", esc(r.Topology))
 	w("| clock | %s |\n\n", esc(clockLine(r.Clock)))
 

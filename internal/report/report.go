@@ -74,6 +74,8 @@ type Client struct {
 	Arch string `json:"arch"`
 	CPUs int    `json:"cpus"`
 	Go   string `json:"go"`
+	// Resources is what the whipbench process spent over the run (WB-17, resources.go).
+	Resources *Resources `json:"resources,omitempty"`
 }
 
 // Second is one second of the run: viewers receiving, and packets they received.
@@ -205,6 +207,9 @@ type Input struct {
 	// when it publishes, and ExchangeClock when a split run was given a clock peer (WB-3).
 	// Nil means the publisher's clock was not measured — method none, nothing comparable.
 	Clock *Clock
+	// Resources is the client's own spend, from the run's ResourceWatch (WB-17); nil
+	// leaves it out of the report.
+	Resources *Resources
 }
 
 // Build assembles a report and applies the no-verdict rule.
@@ -239,6 +244,7 @@ func Build(in Input) *Report {
 	if r.Clock.Method == ClockExchange || r.Clock.Reason != "" {
 		r.Method = append(slices.Clone(r.Method), ClockExchangeMethod)
 	}
+	withResources(r, in.Resources)
 	if in.Publisher != nil {
 		p := *in.Publisher
 		r.Publisher = &p
