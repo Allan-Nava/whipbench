@@ -365,13 +365,17 @@ func TestMetricsEndpointDuringARun(t *testing.T) {
 			b, _ := io.ReadAll(resp.Body)
 			_ = resp.Body.Close()
 			body = string(b)
-			if strings.Contains(body, "whipbench_viewers_joined_total 2\n") {
+			// WB-42: the headline shows while the run runs, not only in the report.
+			if strings.Contains(body, "whipbench_viewers_joined_total 2\n") &&
+				strings.Contains(body, `whipbench_one_way_delay_seconds_count{source="fingerprint"} `) &&
+				!strings.Contains(body, `whipbench_one_way_delay_seconds_count{source="fingerprint"} 0`+"\n") {
 				break
 			}
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	if !strings.Contains(body, "whipbench_viewers_joined_total 2\n") || !strings.Contains(body, "whipbench_viewers_target 2\n") {
+	if !strings.Contains(body, "whipbench_viewers_joined_total 2\n") || !strings.Contains(body, "whipbench_viewers_target 2\n") ||
+		strings.Contains(body, `whipbench_one_way_delay_seconds_count{source="fingerprint"} 0`+"\n") {
 		t.Fatalf("metrics during the run:\n%s", body)
 	}
 	if rep := <-done; rep == nil || !rep.Aggregate.Valid {

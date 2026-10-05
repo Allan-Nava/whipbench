@@ -47,6 +47,9 @@ type Options struct {
 	ClockPeer string
 	// clockEvery replaces ClockInterval when set, so the tests need not wait 30 s.
 	clockEvery time.Duration
+	// live replaces the run's own metrics when set, so a test can read them after the
+	// run has stopped serving them.
+	live *metrics.Live
 }
 
 // Run executes the scenario and returns its report. An error means the run could
@@ -82,7 +85,10 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 	if sc.LoopbackOnly {
 		rtcOpt.LoopbackOnly = true
 	}
-	live := &metrics.Live{}
+	live := opt.live
+	if live == nil {
+		live = &metrics.Live{}
+	}
 	live.ViewersTarget.Store(int64(sc.Viewers))
 
 	stopMetrics, err := serveMetrics(opt.MetricsListener, sc.Metrics, live, logf)

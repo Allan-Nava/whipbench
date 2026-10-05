@@ -389,6 +389,7 @@ func readLoop(track *webrtc.TrackRemote, pr *progress, live *metrics.Live, frame
 			switch o {
 			case sampled:
 				pr.owd.Hist.Add(float64(ds[j]) / float64(time.Millisecond))
+				live.OneWayDelay(pr.owd.Source, ds[j]) // the same sample, live (WB-42)
 			case invalid:
 				pr.owd.Invalid++
 			case unmatched:
