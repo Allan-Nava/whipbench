@@ -26,7 +26,10 @@ internal/reassembler/    per-viewer frame reassembly: packets and arrivals in, c
 internal/rtpstats/       loss, jitter, keyframes, stalls — pure arithmetic (RFC 3550)
 internal/stats/          nearest-rank summaries and the mergeable delay histogram
 internal/scenario/       the scenario file, defaults, validation, the ramp and its seeded offsets (WB-8)
-internal/runner/         one run: publisher, warmup, ramp, hold, timeline, metrics server
+internal/runner/         one run: publisher, warmup, ramp, hold, timeline, metrics server; a
+                         split run's clock points against a clock peer (clock.go, WB-3)
+internal/clocksync/      WB-3's UDP clock exchange: the responder `publish` runs, the probe
+                         `view` sends, the piecewise-linear offset model
 internal/report/         JSON + Markdown, hosts only, the no-verdict rule; topology, clock and
                          comparability, and the ranking rule (clock.go, WB-40)
 internal/metrics/        live counters and the hand-written Prometheus exposition
@@ -55,7 +58,9 @@ Do not weaken these; they are what makes a number from whipbench worth quoting.
    and an interrupted run. `check-repo.sh` holds the README to the constant.
 4. **Hosts only.** No path, query string, user info, `Location` or token reaches a
    report, an error message or the console. `whip.Host` and `whip.Scrub` are the only
-   ways out; the tests assert it on real round trips.
+   ways out; the tests assert it on real round trips. A clock peer's address
+   (`view --clock-peer`) is a load host: it lives in `runner.Options`, not the scenario,
+   and reaches no report, metric or log line.
 5. **Packet transit and one-way delay are network plus server, not glass-to-glass**,
    and they need one clock or synchronised clocks; the report's `topology` and `clock`
    say which, and a block is ranked only when `comparable` (`report.Rankable`, WB-40).

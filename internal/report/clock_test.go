@@ -78,6 +78,9 @@ func TestComparability(t *testing.T) {
 	}
 	stepMono := mono
 	stepMono.StepDetected = true
+	exchange := func(u float64, step bool) Clock {
+		return *ExchangeClock([]ClockPoint{{TS: 0.1, OffsetMs: 250, RTTMs: 2 * u}}, u, step)
+	}
 	for _, c := range []struct {
 		name      string
 		available bool
@@ -91,6 +94,10 @@ func TestComparability(t *testing.T) {
 		{"wall clock at the limit", true, wall(1, false), true, true, ""},
 		{"wall clock above the limit", true, wall(1.5, false), false, true, "clock uncertainty 1.5 ms is above the 1 ms"},
 		{"wall clock stepped", true, wall(0.2, true), false, true, "stepped"},
+		{"exchange", true, exchange(0.3, false), true, true, ""},
+		{"exchange above the limit", true, exchange(4, false), false, true, "clock uncertainty 4 ms is above"},
+		{"exchange stepped, a wall-clock method", true, exchange(0.3, true), false, true, "stepped"},
+		{"clock peer silent", true, *UnmeasuredClock(NoAnswerReason, false), false, false, NoClockReason + ": " + NoAnswerReason},
 		{"unavailable", false, mono, false, false, "unavailable"},
 		{"clock none", true, Clock{Method: ClockNone}, false, false, NoClockReason},
 		{"no method at all", true, Clock{}, false, false, NoClockReason},
@@ -181,6 +188,43 @@ func TestAvailableButNotComparable(t *testing.T) {
 		if !strings.Contains(md, want) {
 			t.Errorf("markdown misses %q:\n%s", want, md)
 		}
+	}
+}
+
+func TestExchangeClock(t *testing.T) {
+	pts := []ClockPoint{{TS: 0.2, OffsetMs: 250.012, RTTMs: 0.08}, {TS: 30.2, OffsetMs: 250.4, RTTMs: 0.1}}
+	c := ExchangeClock(pts, 0.05, false)
+	if c.Method != ClockExchange || *c.OffsetMs != 250.012 || *c.UncertaintyMs != 0.05 || len(c.Points) != 2 || c.Reason != "" {
+		t.Fatalf("exchange clock %+v", c)
+	}
+	r := buildClock("view", TopologySplit, c, false)
+	md := r.Markdown()
+	if !strings.Contains(md, "| clock | exchange, offset 250.012 ms ± 0.05 ms, 2 points, no step |") {
+		t.Errorf("markdown:\n%s", md)
+	}
+	js, err := r.JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(js), `"points": [`) || !strings.Contains(string(js), `"tS": 30.2`) || !strings.Contains(string(js), `"rttMs": 0.08`) {
+		t.Errorf("json:\n%s", js)
+	}
+	if !strings.Contains(strings.Join(r.Method, "\n"), "Clock exchange:") {
+		t.Error("an exchange report does not carry the exchange's definition")
+	}
+
+	// No point at all: none, with the reason, and no number standing in for one.
+	none := ExchangeClock(nil, 0, false)
+	if none.Method != ClockNone || none.Reason != NoAnswerReason || none.OffsetMs != nil || none.UncertaintyMs != nil || none.Points != nil {
+		t.Fatalf("no points: %+v", none)
+	}
+	r = buildClock("view", TopologySplit, none, false)
+	if md := r.Markdown(); !strings.Contains(md, "| clock | none — publisher clock not measured: clock peer did not answer |") {
+		t.Errorf("markdown:\n%s", md)
+	}
+	js, _ = r.JSON()
+	if strings.Contains(string(js), "offsetMs\": 0") || !strings.Contains(string(js), `"reason": "clock peer did not answer"`) {
+		t.Errorf("json:\n%s", js)
 	}
 }
 
