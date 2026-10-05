@@ -2,11 +2,15 @@ package metrics
 
 import (
 	"bytes"
+	"fmt"
 	"net/http/httptest"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Allan-Nava/whipbench/internal/procstat"
 )
 
 func TestExposition(t *testing.T) {
@@ -159,4 +163,122 @@ func unlabelledOneWayDelay(body string) []string {
 		}
 	}
 	return bad
+}
+
+// families parses an exposition into its metric families, name to TYPE, and returns an
+// error for the first line that breaks the guard: a sample whose family has no HELP and
+// TYPE before it, a TYPE without a HELP just before it, a family declared twice, or a
+// histogram suffix on a family that is not a histogram.
+func families(body string) (map[string]string, error) {
+	types := map[string]string{}
+	help := ""
+	for n, line := range strings.Split(strings.TrimSuffix(body, "\n"), "\n") {
+		switch {
+		case strings.HasPrefix(line, "# HELP "):
+			name, _, _ := strings.Cut(strings.TrimPrefix(line, "# HELP "), " ")
+			if _, dup := types[name]; dup {
+				return nil, fmt.Errorf("line %d: %s declared twice", n+1, name)
+			}
+			help = name
+		case strings.HasPrefix(line, "# TYPE "):
+			name, typ, _ := strings.Cut(strings.TrimPrefix(line, "# TYPE "), " ")
+			if name != help {
+				return nil, fmt.Errorf("line %d: TYPE %s without its HELP just before", n+1, name)
+			}
+			types[name], help = typ, ""
+		case strings.HasPrefix(line, "#") || line == "":
+			return nil, fmt.Errorf("line %d: unexpected %q", n+1, line)
+		default:
+			name, _, _ := strings.Cut(line, " ")
+			name, _, _ = strings.Cut(name, "{")
+			if _, ok := types[name]; ok {
+				continue
+			}
+			base := name
+			for _, suf := range []string{"_bucket", "_sum", "_count"} {
+				base = strings.TrimSuffix(base, suf)
+				if base != name {
+					break
+				}
+			}
+			if types[base] != "histogram" {
+				return nil, fmt.Errorf("line %d: sample %q has no HELP and TYPE of its own", n+1, line)
+			}
+		}
+	}
+	return types, nil
+}
+
+// Every series /metrics serves has HELP and TYPE, the client's included (WB-17).
+func TestEverySeriesHasHelpAndType(t *testing.T) {
+	l := &Live{}
+	l.Packet(100)
+	l.PacketTransit(3)
+	l.OneWayDelay("fingerprint", 1000)
+	var b bytes.Buffer
+	l.Write(&b)
+	types, err := families(b.String())
+	if err != nil {
+		t.Fatalf("%v\n%s", err, b.String())
+	}
+	for name, want := range map[string]string{
+		"whipbench_viewers_active":                   "gauge",
+		"whipbench_rtp_packets_received_total":       "counter",
+		"whipbench_packet_transit_seconds":           "histogram",
+		"whipbench_one_way_delay_seconds":            "histogram",
+		"whipbench_client_cpu_seconds_total":         "counter",
+		"whipbench_client_goroutines":                "gauge",
+		"whipbench_client_heap_bytes":                "gauge",
+		"whipbench_publisher_frames_sent_total":      "counter",
+		"whipbench_viewers_failed_total":             "counter",
+		"whipbench_rtp_bytes_received_total":         "counter",
+		"whipbench_publisher_rtp_packets_sent_total": "counter",
+	} {
+		if types[name] != want {
+			t.Errorf("%s: TYPE %q, want %q", name, types[name], want)
+		}
+	}
+	for name, typ := range types {
+		if typ == "counter" && !strings.HasSuffix(name, "_total") {
+			t.Errorf("counter %s does not end in _total", name)
+		}
+	}
+}
+
+func TestGuardRefusesUndeclaredSeries(t *testing.T) {
+	for _, bad := range []string{
+		"whipbench_x 1\n",
+		"# TYPE whipbench_x gauge\nwhipbench_x 1\n",
+		"# HELP whipbench_x x\n# TYPE whipbench_x gauge\n# HELP whipbench_x x\n# TYPE whipbench_x gauge\n",
+		"# HELP whipbench_x x\n# TYPE whipbench_x gauge\nwhipbench_x_count 1\n",
+		"# HELP whipbench_x x\n# TYPE whipbench_x gauge\nwhipbench_x 1\nwhipbench_y 2\n",
+	} {
+		if _, err := families(bad); err == nil {
+			t.Errorf("the guard let %q through", bad)
+		}
+	}
+}
+
+// WB-17: the client's own series, read at scrape time.
+func TestClientSeries(t *testing.T) {
+	var b bytes.Buffer
+	(&Live{}).Write(&b)
+	samples := map[string]string{}
+	for _, line := range strings.Split(b.String(), "\n") {
+		if name, v, ok := strings.Cut(line, " "); ok && strings.HasPrefix(name, "whipbench_client_") {
+			samples[name] = v
+		}
+	}
+	for _, name := range []string{"whipbench_client_goroutines", "whipbench_client_heap_bytes"} {
+		if v, err := strconv.ParseFloat(samples[name], 64); err != nil || v <= 0 {
+			t.Errorf("%s = %q, want a positive reading", name, samples[name])
+		}
+	}
+	cpu, has := samples["whipbench_client_cpu_seconds_total"]
+	if has != procstat.CPUAvailable {
+		t.Errorf("CPU sample present %v, CPUAvailable %v: a platform without a reading declares the counter with no sample, never a 0", has, procstat.CPUAvailable)
+	}
+	if v, err := strconv.ParseFloat(cpu, 64); has && (err != nil || v <= 0) {
+		t.Errorf("whipbench_client_cpu_seconds_total = %q", cpu)
+	}
 }

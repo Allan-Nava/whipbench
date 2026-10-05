@@ -106,6 +106,7 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 	// steps watches the wall clock once a second from the start (the timeline's ticker) and
 	// at the end; nothing else touches it, and finish runs after the timeline has stopped.
 	steps := report.NewStepWatch(in.StartedAt)
+	res := report.NewResourceWatch(in.StartedAt) // the client's own CPU and goroutines (WB-17)
 	// clk is WB-3's exchange, in a split run given a clock peer.
 	var clk *clockExchange
 	if opt.ClockPeer != "" {
@@ -121,6 +122,7 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 	// (WB-3), and any other split run leaves Clock nil — method none.
 	finish := func() {
 		in.FinishedAt = time.Now()
+		in.Resources = res.Finish(in.FinishedAt)
 		switch {
 		case in.Topology == report.TopologySingleProcess:
 			steps.Observe(in.FinishedAt)
@@ -172,7 +174,7 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 	vctx, vcancel := context.WithTimeout(ctx, sc.Duration())
 	defer vcancel()
 	t0 := time.Now()
-	timeline := sampleTimeline(vctx, live, t0, steps)
+	timeline := sampleTimeline(vctx, live, t0, steps, res)
 	stopClock := func() {}
 	if clk != nil {
 		every := opt.clockEvery
@@ -257,8 +259,9 @@ func serveMetrics(ln net.Listener, addr string, live *metrics.Live, logf func(st
 }
 
 // sampleTimeline records, once a second until ctx is done, how many viewers were
-// receiving and how many packets arrived in that second, and shows the second to steps.
-func sampleTimeline(ctx context.Context, live *metrics.Live, t0 time.Time, steps *report.StepWatch) <-chan []report.Second {
+// receiving and how many packets arrived in that second, and shows the second to steps
+// and res.
+func sampleTimeline(ctx context.Context, live *metrics.Live, t0 time.Time, steps *report.StepWatch, res *report.ResourceWatch) <-chan []report.Second {
 	out := make(chan []report.Second, 1)
 	go func() {
 		var tl []report.Second
@@ -272,6 +275,7 @@ func sampleTimeline(ctx context.Context, live *metrics.Live, t0 time.Time, steps
 				return
 			case now := <-tick.C:
 				steps.Observe(time.Now())
+				res.Observe()
 				p := live.PacketsReceived.Load()
 				tl = append(tl, report.Second{T: int(now.Sub(t0).Round(time.Second) / time.Second), Active: live.ViewersActive.Load(), Packets: p - last})
 				last = p

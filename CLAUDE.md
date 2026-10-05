@@ -32,11 +32,15 @@ internal/clocksync/      WB-3's UDP clock exchange: the responder `publish` runs
                          `view` sends, the piecewise-linear offset model
 internal/report/         JSON + Markdown, hosts only, the no-verdict rule; topology, clock and
                          comparability, and the ranking rule (clock.go, WB-40)
-internal/metrics/        live counters and the hand-written Prometheus exposition
+internal/metrics/        live counters and the hand-written Prometheus exposition; its tests hold
+                         examples/grafana/'s dashboard to the names /metrics serves
+internal/procstat/       the client's own CPU (getrusage, linux and darwin), goroutines and heap,
+                         read on demand for /metrics and the report's client.resources (WB-17)
 internal/testserver/     in-process WHIP/WHEP relay for the end-to-end tests
 internal/version/        the version string reports carry
 testdata/                clip-vp8.ivf, clip-h264.h264 (made by scripts/make-clips.sh)
-examples/                scenario files for a local MediaMTX
+examples/                scenario files for a local MediaMTX; grafana/: a dashboard over /metrics
+                         for Grafana 10+, and how to scrape a run and import it (WB-17)
 evals/                   dated live runs: a Markdown summary plus the raw reports
 docs/                    load-testing-etiquette.md: the rule live runs follow (WB-6)
 thoughts/                QRSPI artifacts (WB-1 starts with an empty Questions file)
@@ -134,4 +138,5 @@ tool-attribution trailers or footers in commits, pull requests or files.
   decorative emoji.
 - A dependency needs a reason written here. Today: pion/webrtc v4 (the WebRTC stack —
   the point of the project). The Prometheus exposition is hand-written to avoid the
-  client library.
+  client library, and the client's own series (`internal/procstat`) are the standard
+  library only.

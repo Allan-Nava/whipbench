@@ -138,7 +138,12 @@ method and WB-5 is in `evals/`.**
   keyframe of the new layer, and the loss around the switch. <!-- wb: prio=high size=M labels=client,measurement -->
 - [ ] **WB-17 — Metrics for long runs**: per-layer series, the client's own CPU and
   goroutine count (so a saturated client is visible), and an example Grafana dashboard
-  over the existing `/metrics`. <!-- wb: prio=med size=M labels=report -->
+  over the existing `/metrics`. **Half done 2026-10-05**: the client's CPU seconds,
+  goroutines and heap in `/metrics` (`whipbench_client_*`) and in the report's
+  `client.resources` (CPU seconds, utilisation over the cores, peak goroutines), and a
+  Grafana dashboard in `examples/grafana/` held by a test to the names `/metrics` serves.
+  Still needed: per-layer series, which wait for simulcast's layers (WB-15).
+  <!-- wb: prio=med size=M labels=report -->
 - [ ] **WB-18 — Audio**: an Opus track in the clip and the viewers, with loss and jitter
   per track, and audio/video arrival skew. <!-- wb: prio=med size=M labels=client -->
 - [ ] **WB-19 — STUN, TURN and trickle ICE**: ICE servers in the scenario, trickle ICE

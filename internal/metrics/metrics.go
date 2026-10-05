@@ -9,6 +9,11 @@
 // carries source, the way the report's blocks do, so a second source (WB-39's stamp)
 // adds a label value instead of changing what an existing series means. There is no
 // per-viewer label.
+//
+// Three series describe the client rather than the server (WB-17): its CPU time,
+// goroutines and heap, read from internal/procstat when /metrics is scraped, never on a
+// ticker. They cover the whole process — publisher, viewers and reassembly — so a client
+// that has run out of CPU shows here before its figures are taken for the server's.
 package metrics
 
 import (
@@ -19,6 +24,8 @@ import (
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"github.com/Allan-Nava/whipbench/internal/procstat"
 )
 
 // TransitBucketsMs are the upper bounds of the packet transit histogram.
@@ -168,4 +175,19 @@ func (l *Live) Write(w io.Writer) {
 		fmt.Fprintf(w, "%s_bucket{source=%q,le=\"+Inf\"} %d\n%s_sum{source=%q} %s\n%s_count{source=%q} %d\n", d, src, n, d, src,
 			strconv.FormatFloat(float64(dh.sumNs.Load())/1e9, 'g', -1, 64), d, src, n)
 	}
+
+	writeClient(w)
+}
+
+// writeClient renders the client's own series, read now. Where the platform has no CPU
+// reading the counter is declared with no sample, so a dashboard shows no data rather
+// than a 0 that would read as an idle client.
+func writeClient(w io.Writer) {
+	const c = "whipbench_client_cpu_seconds_total"
+	fmt.Fprintf(w, "# HELP %s CPU time this whipbench process has used, user plus system, since it started: publisher, viewers and reassembly together, not the server. No sample where the platform gives no reading.\n# TYPE %s counter\n", c, c)
+	if d, ok := procstat.CPU(); ok {
+		fmt.Fprintf(w, "%s %s\n", c, strconv.FormatFloat(d.Seconds(), 'g', -1, 64))
+	}
+	fmt.Fprintf(w, "# HELP whipbench_client_goroutines Goroutines in this whipbench process now.\n# TYPE whipbench_client_goroutines gauge\nwhipbench_client_goroutines %d\n", procstat.Goroutines())
+	fmt.Fprintf(w, "# HELP whipbench_client_heap_bytes Heap in use by this whipbench process now: bytes in spans holding objects, live or not yet swept (runtime/metrics, no stop-the-world).\n# TYPE whipbench_client_heap_bytes gauge\nwhipbench_client_heap_bytes %d\n", procstat.HeapBytes())
 }
