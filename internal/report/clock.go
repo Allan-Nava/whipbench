@@ -25,6 +25,9 @@ const (
 	ClockMonotonic = "monotonic"
 	// ClockSameWallClock: one host's wall clock reads both ends; WB-39's stamp.
 	ClockSameWallClock = "same-wall-clock"
+	// ClockExchange: a split run measured the publisher's wall clock against its own
+	// with WB-3's exchange (internal/clocksync); a wall-clock method like the one above.
+	ClockExchange = "exchange"
 	// ClockNone: the publisher's clock was not measured, so no delay is comparable.
 	ClockNone = "none"
 )
@@ -43,9 +46,13 @@ const MaxSlewPPM = 500
 // ranked against another report's (D8, Q7).
 const MaxRankUncertaintyMs = 1.0
 
-// NoClockReason: a split run whose publisher clock nobody measured (D6). WB-3's
-// exchange is what will measure it.
+// NoClockReason: a split run whose publisher clock nobody measured (D6); `view
+// --clock-peer` runs WB-3's exchange to measure it.
 const NoClockReason = "publisher clock not measured"
+
+// NoAnswerReason: a split run was given a clock peer, but not one exchange produced a
+// point, so the method stays none.
+const NoAnswerReason = "clock peer did not answer"
 
 // Clock is how the two ends of a delay were put on one time base. OffsetMs and
 // UncertaintyMs are absent when the method is none: a missing measurement is never a 0.
@@ -53,6 +60,10 @@ type Clock struct {
 	Method        string   `json:"method"`
 	OffsetMs      *float64 `json:"offsetMs,omitempty"`
 	UncertaintyMs *float64 `json:"uncertaintyMs,omitempty"`
+	// Points are the exchange's measurements, in order (method exchange only).
+	Points []ClockPoint `json:"points,omitempty"`
+	// Reason says why the method is none although a clock peer was given.
+	Reason string `json:"reason,omitempty"`
 	// StepDetected: between two of the run's once-a-second observations, wall-clock and
 	// monotonic elapsed time moved apart by more than StepThreshold plus a MaxSlewPPM
 	// slew, so the wall clock was stepped (or slewed faster than a time daemon slews).
@@ -66,6 +77,36 @@ func MonotonicClock(stepped bool) *Clock {
 	zero, unc := 0.0, 0.0
 	return &Clock{Method: ClockMonotonic, OffsetMs: &zero, UncertaintyMs: &unc, StepDetected: stepped}
 }
+
+// ClockPoint is one point of the exchange: when, in seconds since the run's start, the
+// offset of the publisher's clock from the viewer's, and the round trip that bounds it.
+type ClockPoint struct {
+	TS       float64 `json:"tS"`
+	OffsetMs float64 `json:"offsetMs"`
+	RTTMs    float64 `json:"rttMs"`
+}
+
+// ExchangeClock is the clock of a split run that measured its publisher: the first
+// point's offset, uncertaintyMs (the largest RTT/2 over the points, clocksync.Model's
+// Uncertainty) and stepped from the run's StepWatch. With no point it is UnmeasuredClock.
+func ExchangeClock(points []ClockPoint, uncertaintyMs float64, stepped bool) *Clock {
+	if len(points) == 0 {
+		return UnmeasuredClock(NoAnswerReason, stepped)
+	}
+	off, unc := points[0].OffsetMs, uncertaintyMs
+	return &Clock{Method: ClockExchange, OffsetMs: &off, UncertaintyMs: &unc, Points: points, StepDetected: stepped}
+}
+
+// UnmeasuredClock is method none with the reason a requested measurement failed, and no
+// offset or uncertainty.
+func UnmeasuredClock(reason string, stepped bool) *Clock {
+	return &Clock{Method: ClockNone, Reason: reason, StepDetected: stepped}
+}
+
+// readsWallClock: the method reads a wall clock at either end, so a step corrupts it.
+// Only the monotonic clock of a single process is immune; same-wall-clock and exchange
+// both read wall clocks, as will any method added later unless it says otherwise here.
+func readsWallClock(method string) bool { return method != ClockMonotonic }
 
 // StepWatch watches the wall clock against the monotonic clock while a run lasts. Each
 // Observe compares, since the previous observation, the wall-clock and the monotonic time
@@ -116,6 +157,9 @@ func comparability(available bool, c Clock) (unc *float64, ok bool, reason strin
 		return nil, false, "no figure: the block is unavailable"
 	}
 	if c.Method == ClockNone || c.Method == "" {
+		if c.Reason != "" {
+			return nil, false, NoClockReason + ": " + c.Reason
+		}
 		return nil, false, NoClockReason
 	}
 	if c.UncertaintyMs == nil {
@@ -125,7 +169,7 @@ func comparability(available bool, c Clock) (unc *float64, ok bool, reason strin
 	if u > MaxRankUncertaintyMs {
 		return &u, false, fmt.Sprintf("clock uncertainty %s ms is above the %s ms a ranking allows", trimMs(u), trimMs(MaxRankUncertaintyMs))
 	}
-	if c.StepDetected && c.Method != ClockMonotonic {
+	if c.StepDetected && readsWallClock(c.Method) {
 		return &u, false, "the wall clock stepped during the run"
 	}
 	return &u, true, ""

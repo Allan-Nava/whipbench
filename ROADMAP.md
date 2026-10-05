@@ -4,13 +4,13 @@
 
 > This page is **generated** from [BACKLOG.md](BACKLOG.md), the single source of truth for planned work. Regenerate it with `npm run roadmap` after editing the backlog — CI fails when the two disagree.
 
-**45 items · 15 shipped · 30 open · 8 milestones.**
+**45 items · 16 shipped · 29 open · 8 milestones.**
 
 ## At a glance
 
 | Milestone | Phase | Progress | Open | Shipped |
 |---|---|---|---|---|
-| **v0.1.0 — The latency method, and a first report that means something** | now | `#########.` 88% | 1 | 7 |
+| **v0.1.0 — The latency method, and a first report that means something** | now | `##########` 100% | 0 | 8 |
 | **v0.2.0 — Simulcast, layer switches and metrics** | next | `##........` 18% | 9 | 2 |
 | **v0.3.0 — The comparative report across four servers** | later | `..........` 0% | 5 | 0 |
 | **v0.4.0 — Load from many machines** | later | `..........` 0% | 3 | 0 |
@@ -22,7 +22,7 @@
 ## v0.1.0 — The latency method, and a first report that means something
 
 - [x] **WB-1** — Latency method: run QRSPI on it · high · L · research, measurement · `main`
-- [ ] **WB-3** — Clock exchange between publish and view · high · M · client, measurement
+- [x] **WB-3** — Clock exchange between publish and view · high · M · client, measurement · `main`
 - [x] **WB-4** — What each server forwards: extensions, payload bytes, marker bit · high · M · research, benchmark · `main`
 - [x] **WB-5** — Live run against MediaMTX with the decided method · high · M · benchmark · `main`
 - [x] **WB-6** — Ethics of load-testing managed services · high · S · docs, research · `main`

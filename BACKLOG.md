@@ -42,7 +42,7 @@ method and WB-5 is in `evals/`.**
   abs-capture-time stamp once per frame (WB-39), topology and clock in the report (WB-40),
   the window and retransmissions beside it (WB-41); the 0.0.1 metric is packet transit.
   <!-- wb: prio=high size=L labels=research,measurement ver=main -->
-- [ ] **WB-3 — Clock exchange between publish and view**: how a split run, publisher and
+- [x] **WB-3 — Clock exchange between publish and view**: how a split run, publisher and
   viewers on different hosts, measures the clock offset it runs with (WB-1, D6).
   `whipbench publish` answers a small clock responder, opt-in by flag, and
   `whipbench view --clock-peer HOST:PORT` runs an RTT-halving exchange against it at
@@ -52,7 +52,12 @@ method and WB-5 is in `evals/`.**
   opens a second port between the load hosts; reports still carry no host names. RTCP
   sender reports and `chronyc` were rejected: SFUs originate their own SRs, and chrony
   reports each daemon's view of its upstream, not of the peer.
-  <!-- wb: prio=high size=M labels=client,measurement -->
+  Done 2026-10-05: `publish --clock-listen` and `view --clock-peer` over UDP
+  (`internal/clocksync`), 16 probes per point, points before, every 30 s and after the
+  viewers, method `exchange` with `points`, the first point's offset and the largest
+  RTT/2 as uncertainty, a step making it not comparable; a silent peer gives `none` with
+  "clock peer did not answer". No figure applies the offset yet — WB-39 is first.
+  <!-- wb: prio=high size=M labels=client,measurement ver=main -->
 - [x] **WB-4 — What each server forwards: extensions, payload bytes, marker bit**: for
   MediaMTX, OvenMediaEngine, LiveKit and Janus, record whether the WHIP and WHEP answers
   negotiate abs-capture-time, whether the server forwards it, rewrites it or strips it,

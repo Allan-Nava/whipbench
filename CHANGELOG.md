@@ -6,6 +6,21 @@ versions follow [SemVer](https://semver.org/). Items reference their `WB-n` back
 ## [Unreleased]
 
 ### Added
+- Clock exchange between `publish` and `view` (WB-3): `publish --clock-listen ADDR`
+  answers a UDP exchange while it publishes — a 32-byte request, an answer of the same
+  size carrying the responder's clock at receipt and at send, anything else dropped — and
+  `view --clock-peer HOST:PORT` measures a point before the first viewer, every 30 s
+  while viewers run and after they stop: the best of 16 probes 10 ms apart, the round
+  trip on the monotonic clock, the offset ± RTT/2. The report's `clock` gains method
+  `exchange`, `points` (`tS`, `offsetMs`, `rttMs`) and `reason`; `offsetMs` is the first
+  point's, `uncertaintyMs` the largest RTT/2, and a step makes the figure not comparable,
+  as for any wall-clock method. A peer that never answers leaves method `none` with
+  `reason` "clock peer did not answer" and no number. The address reaches no report,
+  metric or log line. New package `internal/clocksync`, with the piecewise-linear
+  `Model` WB-39's stamp source will be the first to apply; no figure uses the offset yet.
+  Beyond the item: the responder also drops a 32-byte packet whose padding is not zero,
+  so two responders cannot be set answering each other, and a peer address that does
+  not resolve gives `reason` "clock peer address did not resolve".
 - `evals/2026-10-05-mediamtx-one-way-delay.md` (WB-5): the 0.0.1 smoke scenarios against
   MediaMTX v1.21.1 with WB-38's one-way delay — p50 2.5 ms (10 viewers), 4.4 ms (50, VP8)
   and 5.1 ms (50, H.264), every complete frame sampled, comparable, no step; the reports

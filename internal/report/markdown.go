@@ -161,14 +161,25 @@ func (r *Report) Markdown() string {
 	return b.String()
 }
 
-// clockLine renders the clock as "monotonic, offset 0 ms ± 0 ms, no step".
+// clockLine renders the clock as "monotonic, offset 0 ms ± 0 ms, no step", and an
+// exchange's as "exchange, offset 250.012 ms ± 0.041 ms, 5 points, no step".
 func clockLine(c Clock) string {
 	if c.Method == ClockNone || c.Method == "" {
+		if c.Reason != "" {
+			return ClockNone + " — " + NoClockReason + ": " + c.Reason
+		}
 		return ClockNone + " — " + NoClockReason
 	}
 	line := c.Method
 	if c.OffsetMs != nil && c.UncertaintyMs != nil {
 		line += fmt.Sprintf(", offset %g ms ± %g ms", *c.OffsetMs, *c.UncertaintyMs)
+	}
+	if c.Method == ClockExchange {
+		if len(c.Points) == 1 {
+			line += ", 1 point"
+		} else {
+			line += fmt.Sprintf(", %d points", len(c.Points))
+		}
 	}
 	if c.StepDetected {
 		return line + ", wall-clock step detected"

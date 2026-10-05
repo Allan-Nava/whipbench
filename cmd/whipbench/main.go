@@ -2,8 +2,8 @@
 // (playback) with native clients — no browser — and writes a report that compares
 // across servers.
 //
-//	whipbench publish --whip URL [--codec vp8|h264] [--duration 0]
-//	whipbench view    --whep URL [-n 10] [--ramp 0s] [--ramp-offset-seed N] [--duration 30s] [--out DIR]
+//	whipbench publish --whip URL [--codec vp8|h264] [--duration 0] [--clock-listen ADDR]
+//	whipbench view    --whep URL [-n 10] [--ramp 0s] [--ramp-offset-seed N] [--duration 30s] [--clock-peer HOST:PORT] [--out DIR]
 //	whipbench run     scenario.json [--out DIR] [--metrics ADDR] [--ramp-offset-seed N]
 //	whipbench version
 //
@@ -16,6 +16,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -27,6 +28,7 @@ import (
 
 	"github.com/Allan-Nava/whipbench"
 	"github.com/Allan-Nava/whipbench/internal/clip"
+	"github.com/Allan-Nava/whipbench/internal/clocksync"
 	"github.com/Allan-Nava/whipbench/internal/publisher"
 	"github.com/Allan-Nava/whipbench/internal/report"
 	"github.com/Allan-Nava/whipbench/internal/rtc"
@@ -175,12 +177,20 @@ func cmdPublish(ctx context.Context, args []string, stdout, stderr io.Writer) in
 	bearerEnv := fs.String("bearer-env", "", "name of an environment variable holding a bearer token")
 	loopback := fs.Bool("include-loopback", false, "add loopback ICE candidates (a server in a local container)")
 	noStamp := fs.Bool("no-stamp", false, "do not stamp send times in abs-capture-time")
+	clockListen := fs.String("clock-listen", "", "answer view --clock-peer on this UDP address, e.g. :7444, while publishing (WB-3). "+
+		"It opens a UDP port and answers anyone who can reach it with three timestamps, and nothing else")
 	if _, err := parse(fs, args); err != nil {
 		return exitUsage
 	}
 	if *endpoint == "" {
 		fmt.Fprintln(stderr, "whipbench publish: --whip is required")
 		return exitUsage
+	}
+	if *clockListen != "" {
+		if err := hostPort(*clockListen, true); err != nil {
+			fmt.Fprintln(stderr, "whipbench publish: --clock-listen:", err)
+			return exitUsage
+		}
 	}
 	bearer, err := bearerFrom(*bearerEnv)
 	if err != nil {
@@ -193,6 +203,14 @@ func cmdPublish(ctx context.Context, args []string, stdout, stderr io.Writer) in
 		return exitUsage
 	}
 	logf := logger(stderr)
+	if *clockListen != "" {
+		stopClock, err := serveClock(ctx, *clockListen, logf)
+		if err != nil {
+			fmt.Fprintln(stderr, "whipbench publish:", err)
+			return exitError
+		}
+		defer stopClock()
+	}
 	logf("publishing %s (%d frames, %.4g fps, keyframe every %d frames) to %s",
 		c.Codec, len(c.Frames), float64(time.Second)/float64(c.FrameDuration()), c.KeyframeInterval(), whip.Host(*endpoint))
 	pub, err := publisher.Connect(ctx, publisher.Config{
@@ -233,9 +251,16 @@ func cmdView(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	fs.BoolVar(&sc.IncludeLoopback, "include-loopback", false, "add loopback ICE candidates (a server in a local container)")
 	fs.BoolVar(&sc.LoopbackOnly, "loopback-only", false, "gather ICE candidates on loopback only (a server on this machine)")
 	applyOffset := rampOffsetFlags(fs)
+	clockPeer := fs.String("clock-peer", "", "measure the publisher's clock against publish --clock-listen at this HOST:PORT (WB-3); the report never records the address")
 	out := fs.String("out", ".", "directory for the JSON and Markdown report")
 	if _, err := parse(fs, args); err != nil {
 		return exitUsage
+	}
+	if *clockPeer != "" {
+		if err := hostPort(*clockPeer, false); err != nil {
+			fmt.Fprintln(stderr, "whipbench view: --clock-peer:", err)
+			return exitUsage
+		}
 	}
 	sc.RampSeconds, sc.HoldSeconds, sc.JoinTimeoutSeconds = ramp.Seconds(), hold.Seconds(), join.Seconds()
 	applyOffset(&sc)
@@ -244,7 +269,7 @@ func cmdView(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "whipbench view:", err)
 		return exitUsage
 	}
-	return execute(ctx, "view", sc, nil, *out, stdout, stderr)
+	return execute(ctx, "view", sc, nil, *clockPeer, *out, stdout, stderr)
 }
 
 func cmdRun(ctx context.Context, args []string, stdout, stderr io.Writer) int {
@@ -281,16 +306,16 @@ func cmdRun(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 			return exitError
 		}
 	}
-	return execute(ctx, "run", sc, c, *out, stdout, stderr)
+	return execute(ctx, "run", sc, c, "", *out, stdout, stderr)
 }
 
-func execute(ctx context.Context, command string, sc scenario.Scenario, c *clip.Clip, out string, stdout, stderr io.Writer) int {
+func execute(ctx context.Context, command string, sc scenario.Scenario, c *clip.Clip, clockPeer, out string, stdout, stderr io.Writer) int {
 	bearer, err := bearerFrom(sc.BearerEnv)
 	if err != nil {
 		fmt.Fprintf(stderr, "whipbench %s: %v\n", command, err)
 		return exitUsage
 	}
-	rep, err := runner.Run(ctx, runner.Options{Command: command, Scenario: sc, Bearer: bearer, Clip: c, Logf: logger(stderr)})
+	rep, err := runner.Run(ctx, runner.Options{Command: command, Scenario: sc, Bearer: bearer, Clip: c, Logf: logger(stderr), ClockPeer: clockPeer})
 	if err != nil {
 		fmt.Fprintf(stderr, "whipbench %s: %v\n", command, err)
 		return exitError
@@ -330,6 +355,41 @@ func headline(a report.Aggregate) string {
 		fmt.Fprintf(&b, "packet transit unavailable: %s\n", a.PacketTransit.Reason)
 	}
 	return b.String()
+}
+
+// hostPort checks a HOST:PORT address. A listen address may leave the host empty
+// (":7444", every interface); a peer may not. The error never repeats the address.
+func hostPort(addr string, listen bool) error {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return errors.New("want HOST:PORT")
+	}
+	if host == "" && !listen {
+		return errors.New("want HOST:PORT, the host is missing")
+	}
+	if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {
+		return errors.New("want a port from 1 to 65535")
+	}
+	return nil
+}
+
+// serveClock answers the clock exchange on addr until ctx is done or stop is called;
+// stop closes the socket.
+func serveClock(ctx context.Context, addr string, logf func(string, ...any)) (stop func(), err error) {
+	conn, err := net.ListenPacket("udp", addr)
+	if err != nil {
+		return nil, fmt.Errorf("--clock-listen: %w", err)
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if err := clocksync.Serve(ctx, conn, time.Now); err != nil {
+			logf("clock responder stopped: %v", err)
+		}
+	}()
+	logf("answering the clock exchange on UDP port %d", conn.LocalAddr().(*net.UDPAddr).Port) //nolint:forcetypeassert // a "udp" PacketConn
+	return func() { cancel(); <-done; _ = conn.Close() }, nil
 }
 
 var unsafeName = regexp.MustCompile(`[^a-zA-Z0-9._-]+`)

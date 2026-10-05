@@ -198,8 +198,8 @@ type Input struct {
 	// claims no shared clock.
 	Topology string
 	// Clock is how the two ends were put on one time base: runner sets MonotonicClock
-	// when it publishes, and WB-3's clock exchange will set a `view`'s. Nil means the
-	// publisher's clock was not measured — method none, nothing comparable.
+	// when it publishes, and ExchangeClock when a split run was given a clock peer (WB-3).
+	// Nil means the publisher's clock was not measured — method none, nothing comparable.
 	Clock *Clock
 }
 
@@ -231,6 +231,9 @@ func Build(in Input) *Report {
 	}
 	if in.Scenario.RampOffsetSeed != nil {
 		r.Method = append(slices.Clone(Method), RampOffsetMethod)
+	}
+	if r.Clock.Method == ClockExchange || r.Clock.Reason != "" {
+		r.Method = append(slices.Clone(r.Method), ClockExchangeMethod)
 	}
 	if in.Publisher != nil {
 		p := *in.Publisher
@@ -491,5 +494,8 @@ const RampOffsetMethod = "Viewer starts: viewer i of n starts i·ramp/n after th
 // before packet transit because it is the headline.
 const OneWayDelayMethod = "One-way delay (source fingerprint): per frame, first-packet send to last-packet arrival, on the monotonic clock of the one process that runs both ends. The publisher logs t0 just before it hands a frame's first packet to the stack, by absolute frame index. Each viewer reassembles frames by RTP timestamp; t1 is the arrival of the frame's last packet — the marker packet, or, on a stream without markers, the last before the next timestamp (frameEnd). A complete frame is hashed — the first 64 bits of SHA-256 over the whole VP8 frame, or over the H.264 VCL NAL units — and matched to the latest send of that clip frame at or before t1; the sample is t1 − t0. A frame still incomplete 1 s after its first packet counts in incompleteFrames and is never hashed; a viewer's first frame and the frames still pending when it stops are not counted. A frame the depacketiser rejects or that is not in the clip counts in unmatchedFrames; a frame whose bytes repeat in the clip (duplicateFrames) is never sampled; a match the RTP timestamps prove whole loops too new, or one with no logged send at or before t1, is invalid. loopMinMs is the shortest time the publisher took to send loopFrames frames: a delay longer than that is caught only by that RTP timestamp check, and a viewer's first match is taken as it is. Retransmitted packets count like any other. Network plus server forwarding plus both clients' stacks — not glass-to-glass; a `view` run has no send log and reports it unavailable. The CPU cost of reassembling and hashing every frame on every viewer is not measured."
 
+// ClockExchangeMethod joins Method in a report whose run was given a clock peer (WB-3).
+const ClockExchangeMethod = "Clock exchange: the viewer's host sends the publisher 16 UDP probes 10 ms apart, each carrying its wall clock t1; the publisher answers each with t1, its wall clock at receipt t2 and at send t3, in a packet no larger than the probe. Per probe, rtt = (t4 − t1) − (t3 − t2) on the viewer's monotonic clock, and offset = ((t2 − t1) + (t3 − t4)) / 2, with t4 the wall reading t1 plus the monotonic elapsed time, so a step during one probe cannot corrupt it; the offset is the publisher's clock minus the viewer's. The probe with the smallest rtt gives the point, known to within rtt/2: the exchange cannot tell an asymmetric path from an offset. Points are taken before the first viewer starts, every 30 s while viewers run and after they stop; a point with no answer within 1 s of its last probe is skipped. offsetMs is the first point's offset, uncertaintyMs the largest rtt/2 over the points, and between points the offset is piecewise-linear, held at the first and last outside them. It is a wall-clock method: a detected step makes a figure not comparable. With no point at all the method is none, with the reason. No figure applies the offset yet."
+
 // ComparabilityMethod is what makes two reports' delays comparable (WB-40, D6 and D8).
-const ComparabilityMethod = "Comparability: topology is single-process when this process published and viewed, split otherwise. The clock block says how both ends share a time base — monotonic in a single-process run, offset 0 ± 0 ms by construction; none in a split run until the publisher's clock is measured, with no offset or uncertainty recorded — and stepDetected is set when wall-clock and monotonic elapsed time over the run differ by more than 0.1 ms. A source block is comparable only when it is available, the clock was measured, its uncertainty is 1 ms or less and, for a wall-clock method, no step was detected; an unavailable block carries no uncertainty. Two reports rank on a source only when both blocks are comparable, both aggregates valid, the clip (codec, loop frames) and every scenario key but the endpoint hosts the same. Sources are never averaged and there is no merged best source."
+const ComparabilityMethod = "Comparability: topology is single-process when this process published and viewed, split otherwise. The clock block says how both ends share a time base — monotonic in a single-process run, offset 0 ± 0 ms by construction; exchange in a split run given a clock peer, with the offset and uncertainty it measured; none in a split run without one, or whose peer never answered, with no offset or uncertainty recorded — and stepDetected is set when wall-clock and monotonic elapsed time over the run differ by more than 0.1 ms. A source block is comparable only when it is available, the clock was measured, its uncertainty is 1 ms or less and, for a wall-clock method, no step was detected; an unavailable block carries no uncertainty. Two reports rank on a source only when both blocks are comparable, both aggregates valid, the clip (codec, loop frames) and every scenario key but the endpoint hosts the same. Sources are never averaged and there is no merged best source."

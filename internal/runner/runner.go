@@ -39,6 +39,14 @@ type Options struct {
 	// MetricsListener, when set, is used for /metrics instead of listening on
 	// Scenario.Metrics (tests pass one on an ephemeral port).
 	MetricsListener net.Listener
+	// ClockPeer, in a split run, is the HOST:PORT of the publisher's clock responder
+	// (`publish --clock-listen`), against which the run measures the publisher's clock
+	// (WB-3); a run that publishes ignores it. It sits here, not in the scenario, because
+	// the scenario is recorded in the report and a report never names a load host: the
+	// address reaches no report, no metric and no log line.
+	ClockPeer string
+	// clockEvery replaces ClockInterval when set, so the tests need not wait 30 s.
+	clockEvery time.Duration
 }
 
 // Run executes the scenario and returns its report. An error means the run could
@@ -92,14 +100,28 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 	// steps watches the wall clock once a second from the start (the timeline's ticker) and
 	// at the end; nothing else touches it, and finish runs after the timeline has stopped.
 	steps := report.NewStepWatch(in.StartedAt)
+	// clk is WB-3's exchange, in a split run given a clock peer.
+	var clk *clockExchange
+	if opt.ClockPeer != "" {
+		if in.Topology == report.TopologySplit {
+			clk = startClock(opt.ClockPeer, logf)
+			defer clk.close()
+		} else {
+			logf("clock peer ignored: this run publishes, so one monotonic clock reads both ends")
+		}
+	}
 	// finish stamps the end; a run that publishes reads both ends on this process's
-	// monotonic clock (WB-40). A split run leaves Clock nil — method none — until WB-3's
-	// exchange measures the publisher's clock and sets it here.
+	// monotonic clock (WB-40), a split run with a clock peer carries the exchange's points
+	// (WB-3), and any other split run leaves Clock nil — method none.
 	finish := func() {
 		in.FinishedAt = time.Now()
-		if in.Topology == report.TopologySingleProcess {
+		switch {
+		case in.Topology == report.TopologySingleProcess:
 			steps.Observe(in.FinishedAt)
 			in.Clock = report.MonotonicClock(steps.Stepped())
+		case clk != nil:
+			steps.Observe(in.FinishedAt)
+			in.Clock = clk.clock(in.StartedAt, steps.Stepped())
 		}
 	}
 
@@ -130,7 +152,10 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 		}
 	}
 
-	// The viewers.
+	// The viewers, after the exchange's first point.
+	if clk != nil {
+		clk.measure(ctx, "start")
+	}
 	starts, offsets := sc.Schedule()
 	if offsets != nil {
 		logf("starting %d viewers over %gs, each offset by up to %gs (seed %d), holding %gs",
@@ -142,6 +167,14 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 	defer vcancel()
 	t0 := time.Now()
 	timeline := sampleTimeline(vctx, live, t0, steps)
+	stopClock := func() {}
+	if clk != nil {
+		every := opt.clockEvery
+		if every <= 0 {
+			every = ClockInterval
+		}
+		stopClock = clk.every(vctx, every)
+	}
 	results := make([]viewer.Result, sc.Viewers)
 	var wg sync.WaitGroup
 	for i := range sc.Viewers {
@@ -171,6 +204,10 @@ func Run(ctx context.Context, opt Options) (*report.Report, error) {
 	}
 	wg.Wait()
 	vcancel()
+	stopClock()
+	if clk != nil {
+		clk.measure(ctx, "end")
+	}
 	in.Timeline = <-timeline
 	in.Viewers = results
 	pubCancel()

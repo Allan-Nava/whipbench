@@ -2,14 +2,18 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/Allan-Nava/whipbench/internal/clocksync"
 	"github.com/Allan-Nava/whipbench/internal/report"
 	"github.com/Allan-Nava/whipbench/internal/rtc"
 	"github.com/Allan-Nava/whipbench/internal/stats"
@@ -153,5 +157,53 @@ func TestHeadline(t *testing.T) {
 	}
 	if i, j := strings.Index(got, "one-way delay"), strings.Index(got, "packet transit"); j < i {
 		t.Errorf("packet transit before one-way delay: %q", got)
+	}
+}
+
+// WB-3: a clock address that does not parse is a usage error, and never echoed back.
+func TestClockFlagsAreChecked(t *testing.T) {
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"view", "--whep", "http://127.0.0.1:1/whep", "--clock-peer", "192.0.2.9"}, "--clock-peer: want HOST:PORT"},
+		{[]string{"view", "--whep", "http://127.0.0.1:1/whep", "--clock-peer", ":7444"}, "the host is missing"},
+		{[]string{"view", "--whep", "http://127.0.0.1:1/whep", "--clock-peer", "192.0.2.9:http"}, "port from 1 to 65535"},
+		{[]string{"view", "--whep", "http://127.0.0.1:1/whep", "--clock-peer", "192.0.2.9:70000"}, "port from 1 to 65535"},
+		{[]string{"publish", "--whip", "http://127.0.0.1:1/whip", "--clock-listen", "7444"}, "--clock-listen: want HOST:PORT"},
+		{[]string{"publish", "--whip", "http://127.0.0.1:1/whip", "--clock-listen", ":0"}, "port from 1 to 65535"},
+	} {
+		var out, errb bytes.Buffer
+		if code := run(c.args, &out, &errb); code != exitUsage || !strings.Contains(errb.String(), c.want) {
+			t.Errorf("%v: exit %d, %q", c.args, code, errb.String())
+		}
+		if strings.Contains(errb.String(), "192.0.2.9") {
+			t.Errorf("%v: the error repeats the address", c.args)
+		}
+	}
+}
+
+func TestServeClockAnswersUntilStopped(t *testing.T) {
+	var logs bytes.Buffer
+	stop, err := serveClock(context.Background(), "127.0.0.1:0", func(f string, a ...any) { fmt.Fprintf(&logs, f+"\n", a...) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	var port int
+	if _, err := fmt.Sscanf(logs.String(), "answering the clock exchange on UDP port %d", &port); err != nil || port == 0 {
+		t.Fatalf("log %q", logs.String())
+	}
+	peer := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}
+	conn, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+	if p, err := clocksync.Measure(context.Background(), conn, peer, 4, time.Millisecond); err != nil || p.Offset.Abs() > p.RTT/2+time.Microsecond {
+		t.Fatalf("measure against publish's responder: %+v, %v", p, err)
+	}
+	stop()
+	if _, err := clocksync.Measure(context.Background(), conn, peer, 1, time.Millisecond); err == nil {
+		t.Fatal("the responder still answers after stop")
 	}
 }
