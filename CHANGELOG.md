@@ -5,6 +5,19 @@ versions follow [SemVer](https://semver.org/). Items reference their `WB-n` back
 
 ## [Unreleased]
 
+### Added
+- Live one-way delay series (WB-42): `/metrics` serves
+  `whipbench_one_way_delay_seconds{source="fingerprint"}`, a histogram of WB-38's per-frame
+  figure, so a long run shows the headline while it runs. A viewer observes a sample at the
+  one place its report block takes one, never for an invalid, unmatched or duplicate frame;
+  the buckets run 0.1, 0.2, 0.5 … 500 ms, 1 s, the packet transit ladder moved two steps
+  down because a local frame's delay is under a millisecond at the median. The source
+  values are fixed in `metrics.OneWayDelaySources` and there is no per-viewer label. A
+  `view` has no send log and declares the series with a count of 0, as packet transit does
+  when the extension is not negotiated. The guard in `internal/metrics/metrics_test.go`
+  now admits the name only with a known `source` label and refuses any unlabelled
+  one-way delay line; packet transit's series is unchanged.
+
 ## [0.1.0] — 2026-10-05
 
 The latency method, and a first report that means something. `run` reports one-way delay
