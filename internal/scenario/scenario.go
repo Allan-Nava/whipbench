@@ -55,6 +55,11 @@ type Scenario struct {
 	JoinTimeoutSeconds float64 `json:"joinTimeoutSeconds,omitempty"`
 	// StallMs is the packet gap counted as a stall; default 500.
 	StallMs float64 `json:"stallMs,omitempty"`
+	// ExcludeFirstSeconds is how long after a viewer's own first RTP packet its frames
+	// are left out of the one-way delay samples (WB-41, D7); default 5, 0 samples from
+	// the first frame. A pointer, so that an explicit 0 survives the default. It shapes
+	// what is sampled, so a report records it; loss, jitter and join are not windowed.
+	ExcludeFirstSeconds *float64 `json:"excludeFirstSeconds,omitempty"`
 	// BearerEnv names an environment variable holding a bearer token for both
 	// endpoints. The token itself never appears in a scenario or a report.
 	BearerEnv string `json:"bearerEnv,omitempty"`
@@ -74,11 +79,15 @@ const (
 	DefaultWarmup      = 2.0
 	DefaultJoinTimeout = 10.0
 	DefaultStallMs     = 500.0
+	// DefaultExcludeFirst is the one-way delay sample window's default, in seconds.
+	DefaultExcludeFirst = 5.0
 	// DefaultRampOffsetMax is the clip's GOP, 30 frames at 30 fps.
 	DefaultRampOffsetMax = 1.0
 	MaxViewers           = 10000
 	// MaxRampOffsetSeconds caps rampOffsetMaxSeconds at an hour, far beyond any GOP.
 	MaxRampOffsetSeconds = 3600.0
+	// MaxExcludeFirstSeconds caps excludeFirstSeconds at an hour, as rampOffsetMaxSeconds.
+	MaxExcludeFirstSeconds = 3600.0
 )
 
 // Load reads and validates a scenario file.
@@ -117,6 +126,10 @@ func (s *Scenario) applyDefaults() {
 	}
 	if s.StallMs == 0 {
 		s.StallMs = DefaultStallMs
+	}
+	if s.ExcludeFirstSeconds == nil {
+		v := DefaultExcludeFirst
+		s.ExcludeFirstSeconds = &v
 	}
 	if s.RampOffsetSeed != nil && s.RampOffsetMaxSeconds == 0 {
 		s.RampOffsetMaxSeconds = DefaultRampOffsetMax
@@ -165,6 +178,10 @@ func (s Scenario) Validate() error {
 		return errors.New("scenario: joinTimeoutSeconds must be positive")
 	case s.StallMs <= 0:
 		return errors.New("scenario: stallMs must be positive")
+	case s.ExcludeFirstSeconds != nil && !(*s.ExcludeFirstSeconds >= 0):
+		return errors.New("scenario: excludeFirstSeconds must not be negative")
+	case s.ExcludeFirstSeconds != nil && *s.ExcludeFirstSeconds > MaxExcludeFirstSeconds:
+		return fmt.Errorf("scenario: excludeFirstSeconds must be at most %g", MaxExcludeFirstSeconds)
 	case s.RampOffsetSeed == nil && s.RampOffsetMaxSeconds != 0:
 		return errors.New("scenario: rampOffsetMaxSeconds needs rampOffsetSeed")
 	case s.RampOffsetSeed != nil && !(s.RampOffsetMaxSeconds > 0 && s.RampOffsetMaxSeconds <= MaxRampOffsetSeconds):
@@ -186,6 +203,16 @@ func (s Scenario) RampOffsetMax() time.Duration {
 func (s Scenario) Hold() time.Duration        { return secs(s.HoldSeconds) }
 func (s Scenario) Warmup() time.Duration      { return secs(s.WarmupSeconds) }
 func (s Scenario) JoinTimeout() time.Duration { return secs(s.JoinTimeoutSeconds) }
+
+// ExcludeFirst is the one-way delay sample window: DefaultExcludeFirst when the key is
+// absent, which only a scenario that skipped Normalise can be.
+func (s Scenario) ExcludeFirst() time.Duration {
+	if s.ExcludeFirstSeconds == nil {
+		return secs(DefaultExcludeFirst)
+	}
+	return secs(*s.ExcludeFirstSeconds)
+}
+
 func (s Scenario) Stall() time.Duration {
 	return time.Duration(s.StallMs * float64(time.Millisecond))
 }

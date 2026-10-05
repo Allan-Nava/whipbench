@@ -89,6 +89,44 @@ func TestFirstCopyWins(t *testing.T) {
 	none(t, push(t, r, pk(12, 3000, true, c('Y')...), 15), "duplicate 12 after completion")
 }
 
+// WB-41: a frame is completed late when one of its own packets arrives after its marker
+// packet; a frame that waits only for the packet proving its head — the frame before's —
+// is not, though its Completed is later than its Arrival. First is the arrival of the
+// first packet to arrive, whichever its sequence number.
+func TestLateCompleted(t *testing.T) {
+	r := newR(t, "vp8")
+	prime(r)
+	none(t, push(t, r, pk(10, 3000, false, s('a')...), 10), "push 10")
+	f := one(t, push(t, r, pk(11, 3000, true, c('b')...), 11), "ab", "push 11")
+	if f.Late || !f.First.Equal(at(10)) || r.LateCompleted() != 0 {
+		t.Fatalf("an in-order frame: %+v, LateCompleted %d", f, r.LateCompleted())
+	}
+
+	// Frame 6000: 13 then the marker 14, and 12 — its middle — retransmitted after both.
+	none(t, push(t, r, pk(13, 6000, false, c('d')...), 40), "push 13")
+	none(t, push(t, r, pk(14, 6000, true, c('e')...), 41), "push 14")
+	f = one(t, push(t, r, pk(12, 6000, false, s('c')...), 140), "cde", "retransmitted 12")
+	if !f.Late || !f.Arrival.Equal(at(41)) || !f.Completed.Equal(at(140)) || !f.First.Equal(at(40)) {
+		t.Fatalf("a gap filled after the marker: %+v", f)
+	}
+	if r.LateCompleted() != 1 {
+		t.Fatalf("LateCompleted() = %d, want 1", r.LateCompleted())
+	}
+
+	// Frame 9000's marker 16 arrives after frame 12000 (17, 18): 9000's last packet is its
+	// marker, so it is not late; 12000 waited only for its head proof, so it is not either.
+	none(t, push(t, r, pk(15, 9000, false, s('f')...), 70), "push 15")
+	none(t, push(t, r, pk(17, 12000, false, s('h')...), 72), "push 17")
+	none(t, push(t, r, pk(18, 12000, true, c('i')...), 73), "push 18")
+	got := push(t, r, pk(16, 9000, true, c('g')...), 90)
+	if len(got) != 2 || got[0].Late || got[1].Late || !got[1].Completed.After(got[1].Arrival) {
+		t.Fatalf("frames %+v", got)
+	}
+	if r.LateCompleted() != 1 {
+		t.Fatalf("LateCompleted() = %d after a late head proof, want still 1", r.LateCompleted())
+	}
+}
+
 func TestSequenceWrap(t *testing.T) {
 	r := newR(t, "vp8")
 	none(t, push(t, r, pk(65534, 0, true, s('p')...), 0), "push 65534")

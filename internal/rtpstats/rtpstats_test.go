@@ -87,6 +87,28 @@ func TestReorderIsNotLoss(t *testing.T) {
 	}
 }
 
+// WB-41: a NACK retransmission, with RTX not negotiated, arrives on its original sequence
+// number well after the packets behind it. Lost counts it while it is missing and not
+// once it has arrived: it is received, never tooLate, and lost is what never arrived.
+func TestRetransmissionFillsAGap(t *testing.T) {
+	s := New(clock, 0)
+	feed(s, []uint16{100, 101, 103, 104, 105})
+	if got := s.Summary(); got.Lost != 1 || got.Received != 5 {
+		t.Fatalf("before the retransmission: %+v", got)
+	}
+	s.Add(Packet{Seq: 102, Timestamp: 102 * 3000}, at(105*3000, 120*time.Millisecond))
+	feed(s, []uint16{106})
+	got := s.Summary()
+	if got.Lost != 0 || got.Received != 7 || got.Expected != 7 || got.TooLate != 0 || got.Duplicates != 0 {
+		t.Fatalf("after the retransmission: %+v", got)
+	}
+	// A retransmission the stream already has — a NACK answered twice — is a duplicate.
+	s.Add(Packet{Seq: 102, Timestamp: 102 * 3000}, at(106*3000, 0))
+	if got := s.Summary(); got.Duplicates != 1 || got.Received != 7 || got.Lost != 0 {
+		t.Fatalf("a second copy: %+v", got)
+	}
+}
+
 func TestDuplicatesAreNotReceivedTwice(t *testing.T) {
 	s := New(clock, 0)
 	seqs := append(seqRange(0, 100), 10, 20, 30, 40, 50)

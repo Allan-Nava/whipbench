@@ -110,6 +110,8 @@ type Aggregate struct {
 	PacketsReceived uint64  `json:"packetsReceived"`
 	PacketsLost     uint64  `json:"packetsLost"`
 	LossTotal       float64 `json:"lossPercentTotal"`
+	// NACKsSent sums the joined viewers' nacksSent (WB-41).
+	NACKsSent uint64 `json:"nacksSent"`
 
 	// OneWayDelay is the headline: one pooled block per source, the fingerprint first.
 	OneWayDelay   []OneWayDelay `json:"oneWayDelay"`
@@ -132,6 +134,9 @@ type OneWayDelay struct {
 	Samples           uint64         `json:"samples"`
 	Invalid           uint64         `json:"invalid"`
 	UnmatchedFrames   uint64         `json:"unmatchedFrames"`
+	// ExcludedFrames and LateCompletedFrames sum the viewers' blocks (WB-41).
+	ExcludedFrames      uint64 `json:"excludedFrames"`
+	LateCompletedFrames uint64 `json:"lateCompletedFrames"`
 	// DuplicateFrames is the number of clip frames whose bytes repeat in the clip and
 	// so are never sampled; LoopFrames the clip's length in frames; LoopMinMs the
 	// shortest time the publisher took to send one loop, absent until it sent one.
@@ -308,8 +313,8 @@ func finishOneWayDelay(o viewer.OneWayDelay) viewer.OneWayDelay {
 		o.Available, o.Ms = false, nil
 	case o.Samples == 0 || o.Hist == nil:
 		o.Available, o.Ms = false, nil
-		o.Reason = fmt.Sprintf("no valid sample: %d complete frames (%d unmatched, %d invalid), %d incomplete",
-			o.CompleteFrames, o.UnmatchedFrames, o.Invalid, o.IncompleteFrames)
+		o.Reason = fmt.Sprintf("no valid sample: %d complete frames (%d unmatched, %d invalid, %d excluded), %d incomplete",
+			o.CompleteFrames, o.UnmatchedFrames, o.Invalid, o.ExcludedFrames, o.IncompleteFrames)
 	default:
 		o.Available = true
 		sm := o.Hist.Summary()
@@ -379,6 +384,7 @@ func aggregate(target int, vs []viewer.Result, pub *publisher.Result, fp *Finger
 		a.Stalls += v.RTP.Stalls
 		a.PacketsReceived += v.RTP.Received
 		a.PacketsLost += v.RTP.Lost
+		a.NACKsSent += v.NACKsSent
 		if h := v.PacketTransit.Histogram(); h != nil {
 			hist.Merge(h)
 			a.PacketTransit.Viewers++
@@ -390,6 +396,8 @@ func aggregate(target int, vs []viewer.Result, pub *publisher.Result, fp *Finger
 		delay.IncompleteFrames += b.IncompleteFrames
 		delay.Invalid += b.Invalid
 		delay.UnmatchedFrames += b.UnmatchedFrames
+		delay.ExcludedFrames += b.ExcludedFrames
+		delay.LateCompletedFrames += b.LateCompletedFrames
 		if b.Available && b.Hist != nil {
 			delayHist.Merge(b.Hist)
 			keyHist.Merge(b.KeyHist)
@@ -508,14 +516,15 @@ func (r *Report) JSON() ([]byte, error) {
 // context still says what it measured.
 var Method = []string{
 	"Join time is measured from the WHEP POST (after host-candidate ICE gathering). firstRtp: the first RTP packet arrives. firstKeyframe: the last packet of the first keyframe received complete arrives — no decoder runs, so this is when a frame could first be decoded, not when one was. A viewer has joined when it reaches firstKeyframe within the join timeout.",
-	"Loss: expected = highest − first extended sequence number + 1 (RFC 3550 A.1), lost = expected − received, duplicates not counted. Measured on the stream the viewer receives, after NACK recovery; RTX is not negotiated, so a retransmission counts as received.",
-	"Jitter: RFC 3550 §6.4.1 interarrival jitter, J += (|D| − J)/16 per packet, in milliseconds.",
+	"Loss: expected = highest − first extended sequence number + 1 (RFC 3550 A.1), lost = expected − received, duplicates not counted. Measured on the stream the viewer receives, after NACK recovery; RTX is not negotiated, so a retransmission arrives on its original sequence number and counts as received: a packet missing at one moment and retransmitted later is not lost, and lost is what never arrived by the end of the viewer's run. tooLate counts a packet more than 65,535 sequence numbers behind the highest, which a retransmission never is. Not windowed: loss, jitter and join count from the viewer's first packet.",
+	"NACKs: nacksSent is the RTCP generic NACK messages (RFC 4585) the viewer's pion NACK generator sent, counted where it writes them — messages, not packets asked for; one message can ask for several packets, and a packet still missing is asked for again every 100 ms. The aggregate sums the joined viewers'.",
+	"Jitter: RFC 3550 §6.4.1 interarrival jitter, J += (|D| − J)/16 per packet in arrival order, in milliseconds; a retransmission counts like any other packet, so recovered loss raises it.",
 	"Keyframe interval: spacing of keyframe starts in RTP time, i.e. the GOP the server delivers. The publisher's clip has a fixed 1 s GOP and cannot answer PLI, so a joining viewer waits for the next keyframe in the loop.",
 	OneWayDelayMethod,
 	FrameKindMethod,
 	ComparabilityMethod,
 	"Packet transit: the publisher stamps each packet's wall-clock send time in the abs-capture-time RTP header extension; a viewer's sample is its arrival time minus the stamp. It is network plus server forwarding plus both clients' stacks, per packet rather than per frame, on one host or synchronised clocks — not glass-to-glass. When the server does not negotiate or forward the extension, packet transit is reported unavailable, never estimated.",
-	"Percentiles are nearest-rank. Join, loss and jitter summaries take one value per joined viewer; packet transit pools every valid sample of every viewer that has it, in a histogram with 1% buckets.",
+	"Percentiles are nearest-rank. Join, loss and jitter summaries take one value per joined viewer; packet transit and the per-frame delay pool every valid sample of every viewer that has it, in a histogram of 1 % buckets: a percentile is within ±0.5 % of value, min and max are exact, and the Markdown prints them to 0.1 ms.",
 	"No-verdict rule: when more than 10% of the viewers failed to join, the aggregate is not valid and must not be quoted.",
 }
 
@@ -524,7 +533,7 @@ const RampOffsetMethod = "Viewer starts: viewer i of n starts i·ramp/n after th
 
 // OneWayDelayMethod is the definition every report carries (P1, P2), placed in Method
 // before packet transit because it is the headline.
-const OneWayDelayMethod = "One-way delay (source fingerprint): per frame, first-packet send to last-packet arrival, on the monotonic clock of the one process that runs both ends. The publisher logs t0 just before it hands a frame's first packet to the stack, by absolute frame index. Each viewer reassembles frames by RTP timestamp; t1 is the arrival of the frame's last packet — the marker packet, or, on a stream without markers, the last before the next timestamp (frameEnd). A complete frame is hashed — the first 64 bits of SHA-256 over the whole VP8 frame, or over the H.264 VCL NAL units — and matched to the latest send of that clip frame at or before t1; the sample is t1 − t0. A frame still incomplete 1 s after its first packet counts in incompleteFrames and is never hashed; a viewer's first frame and the frames still pending when it stops are not counted. A frame the depacketiser rejects or that is not in the clip counts in unmatchedFrames; a frame whose bytes repeat in the clip (duplicateFrames) is never sampled; a match the RTP timestamps prove whole loops too new, or one with no logged send at or before t1, is invalid. loopMinMs is the shortest time the publisher took to send loopFrames frames: a delay longer than that is caught only by that RTP timestamp check, and a viewer's first match is taken as it is. Retransmitted packets count like any other. Network plus server forwarding plus both clients' stacks — not glass-to-glass; a `view` run has no send log and reports it unavailable. The CPU cost of reassembling and hashing every frame on every viewer is not measured."
+const OneWayDelayMethod = "One-way delay (source fingerprint): per frame, first-packet send to last-packet arrival, on the monotonic clock of the one process that runs both ends. A viewer's frames whose first packet arrived within the scenario's excludeFirstSeconds (default 5) of that viewer's own first RTP packet are hashed and matched but not sampled, and count in excludedFrames, so completeFrames = samples + invalid + unmatchedFrames + excludedFrames + the frames that are clip duplicates; the live series sees the same samples, and loss, jitter and join are not windowed. The publisher logs t0 just before it hands a frame's first packet to the stack, by absolute frame index. Each viewer reassembles frames by RTP timestamp; t1 is the arrival of the frame's last packet — the marker packet, or, on a stream without markers, the last before the next timestamp (frameEnd). A complete frame is hashed — the first 64 bits of SHA-256 over the whole VP8 frame, or over the H.264 VCL NAL units — and matched to the latest send of that clip frame at or before t1; the sample is t1 − t0. A frame still incomplete 1 s after its first packet counts in incompleteFrames and is never hashed; a viewer's first frame and the frames still pending when it stops are not counted. A frame the depacketiser rejects or that is not in the clip counts in unmatchedFrames; a frame whose bytes repeat in the clip (duplicateFrames) is never sampled; a match the RTP timestamps prove whole loops too new, or one with no logged send at or before t1, is invalid. loopMinMs is the shortest time the publisher took to send loopFrames frames: a delay longer than that is caught only by that RTP timestamp check, and a viewer's first match is taken as it is. A retransmitted packet counts like any other: lateCompletedFrames counts the complete frames one of whose packets arrived after their last packet — a gap filled after the frame's end had arrived, by a NACK retransmission or by reordering — and their samples still end at that last packet, not at the gap's filling. A frame whose last packet was itself retransmitted is not among them, and its sample ends at the retransmission. The viewer's nacksSent stands beside them. Samples are pooled in a histogram of 1 % buckets read at the geometric midpoint, so a percentile is within ±0.5 % of value (min and max exact), printed to 0.1 ms. Network plus server forwarding plus both clients' stacks — not glass-to-glass; a `view` run has no send log and reports it unavailable. The CPU cost of reassembling and hashing every frame on every viewer is not measured."
 
 // FrameKindMethod defines the keyframe and delta-frame split of every source block (WB-44).
 // It never says "one-way delay": that phrase names OneWayDelayMethod's line alone.

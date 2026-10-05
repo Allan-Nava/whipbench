@@ -26,6 +26,11 @@ type Options struct {
 	// IncludeLoopback adds loopback candidates to the usual ones, for a server in a
 	// local container that advertises 127.0.0.1.
 	IncludeLoopback bool
+	// Interceptors are registered ahead of pion's defaults, so each one's RTCP writer
+	// sits beneath theirs and sees what they write — the NACK generator's NACKs for a
+	// NACKCounter — and its stream writers beneath their NACK responder. The viewer
+	// adds its NACKCounter here; the test relay adds a packet dropper.
+	Interceptors []interceptor.Factory
 }
 
 // Codec capabilities. RTX is deliberately not registered: a retransmission then
@@ -79,8 +84,8 @@ func CodecName(mime string) string {
 }
 
 // NewAPI returns a pion API that offers or accepts the given codecs (all of them
-// when none is named), the abs-capture-time extension, and pion's default
-// interceptors (NACK, RTCP reports, TWCC).
+// when none is named), the abs-capture-time extension, opt.Interceptors and then
+// pion's default interceptors (NACK, RTCP reports, stats, TWCC).
 func NewAPI(opt Options, codecs ...string) (*webrtc.API, error) {
 	me := &webrtc.MediaEngine{}
 	var params []webrtc.RTPCodecParameters
@@ -106,6 +111,9 @@ func NewAPI(opt Options, codecs ...string) (*webrtc.API, error) {
 		return nil, err
 	}
 	ir := &interceptor.Registry{}
+	for _, f := range opt.Interceptors {
+		ir.Add(f)
+	}
 	if err := webrtc.RegisterDefaultInterceptors(me, ir); err != nil {
 		return nil, err
 	}

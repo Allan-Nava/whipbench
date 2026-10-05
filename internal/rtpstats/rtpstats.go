@@ -9,6 +9,12 @@
 //     (Appendix A.1, A.3), lost = expected − received, with duplicates not counted as
 //     received. Lost can therefore not go negative, unlike the RFC's cumulative
 //     count, which counts duplicates.
+//   - a packet that arrives behind later ones — reordered, or a NACK retransmission on
+//     its original sequence number, RTX not being negotiated — is received like any
+//     other, so a gap filled late stops counting as lost and lost is what never
+//     arrived (WB-41). tooLate is a packet more than 65,535 sequence numbers behind the
+//     highest, too old for the window to tell from a duplicate; a retransmission is
+//     never that far behind.
 //   - jitter is the interarrival jitter of §6.4.1 and Appendix A.8:
 //     D(i,j) = (Rj − Ri) − (Sj − Si) in RTP clock units, J += (|D| − J)/16, updated on
 //     every packet in arrival order.

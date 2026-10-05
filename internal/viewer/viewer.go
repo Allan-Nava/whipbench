@@ -1,6 +1,7 @@
 // Package viewer is one WHEP viewer: it negotiates a receive-only video session,
 // reads every RTP packet, and reports join time, loss, jitter, keyframe spacing,
-// stalls and — when the stamp survives the server — packet transit.
+// stalls, the NACKs it sent, one-way delay in `run` and — when the stamp survives the
+// server — packet transit.
 //
 // Join time is measured from the moment the WHEP POST is sent (after ICE
 // gathering, which for host candidates takes milliseconds and is not counted) to:
@@ -10,6 +11,12 @@
 //     arrives. The viewer has no decoder, so this is not "first decoded frame"; it
 //     is the earliest moment a decoder could have produced one. A viewer has
 //     joined when it gets there before the join timeout.
+//
+// One-way delay is sampled after a window (WB-41): a frame whose first packet arrived
+// within ExcludeFirst of the viewer's own first RTP packet is still hashed and matched,
+// so the matcher's anchor runs on from the first frame, but it is counted in
+// ExcludedFrames instead of the outcome it would have had, and neither the report nor the
+// live series sees its sample. Loss, jitter, join and stalls are not windowed.
 package viewer
 
 import (
@@ -17,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"sync"
 	"time"
 
@@ -55,6 +63,9 @@ type Config struct {
 	// delay; view leaves them nil and the report says why.
 	Frames  *fingerprint.Table
 	SendLog *fingerprint.SendLog
+	// ExcludeFirst leaves out of one-way delay every frame whose first packet arrived
+	// within this long of the viewer's own first RTP packet (WB-41); 0 samples them all.
+	ExcludeFirst time.Duration
 }
 
 // PacketTransit is a viewer's per-packet arrival minus send stamp, or why it could not be measured.
@@ -99,9 +110,13 @@ type Result struct {
 	FirstRTPMs      *float64 `json:"firstRtpMs,omitempty"`
 	FirstKeyframeMs *float64 `json:"firstKeyframeMs,omitempty"`
 
-	RTP           rtpstats.Summary `json:"rtp"`
-	OneWayDelay   []OneWayDelay    `json:"oneWayDelay"`
-	PacketTransit PacketTransit    `json:"packetTransit"`
+	RTP rtpstats.Summary `json:"rtp"`
+	// NACKsSent is the RTCP NACK messages the viewer sent (WB-41), counted by
+	// rtc.NACKCounter: messages, not packets asked for, and re-sent every 100 ms for a
+	// packet still missing.
+	NACKsSent     uint64        `json:"nacksSent"`
+	OneWayDelay   []OneWayDelay `json:"oneWayDelay"`
+	PacketTransit PacketTransit `json:"packetTransit"`
 
 	// DroppedAfterJoin: the connection failed after the viewer had joined.
 	DroppedAfterJoin bool   `json:"droppedAfterJoin,omitempty"`
@@ -165,7 +180,10 @@ func Run(ctx context.Context, id int, cfg Config) (res Result) {
 		return res
 	}
 
-	api, err := rtc.NewAPI(cfg.RTC)
+	nacks := &rtc.NACKCounter{}
+	rtcOpt := cfg.RTC
+	rtcOpt.Interceptors = append(slices.Clone(cfg.RTC.Interceptors), nacks)
+	api, err := rtc.NewAPI(rtcOpt)
 	if err != nil {
 		return failWith("webrtc", err)
 	}
@@ -189,6 +207,7 @@ func Run(ctx context.Context, id int, cfg Config) (res Result) {
 			case <-time.After(3 * time.Second):
 			}
 		}
+		res.NACKsSent = nacks.Sent()
 		pr.mu.Lock()
 		defer pr.mu.Unlock()
 		res.Codec = pr.codec
@@ -246,7 +265,7 @@ func Run(ctx context.Context, id int, cfg Config) (res Result) {
 		pr.mu.Unlock()
 		go drainRTCP(receiver)
 		defer close(pr.readDone)
-		readLoop(track, pr, live, cfg.Frames, cfg.SendLog)
+		readLoop(track, pr, live, cfg.Frames, cfg.SendLog, cfg.ExcludeFirst)
 	})
 
 	offer, err := pc.CreateOffer(nil)
@@ -316,7 +335,7 @@ func Run(ctx context.Context, id int, cfg Config) (res Result) {
 	return res
 }
 
-func readLoop(track *webrtc.TrackRemote, pr *progress, live *metrics.Live, frames *fingerprint.Table, log *fingerprint.SendLog) {
+func readLoop(track *webrtc.TrackRemote, pr *progress, live *metrics.Live, frames *fingerprint.Table, log *fingerprint.SendLog, exclude time.Duration) {
 	var rs *reassembler.Reassembler
 	var m *fingerprint.Matcher
 	pr.mu.Lock()
@@ -333,12 +352,16 @@ func readLoop(track *webrtc.TrackRemote, pr *progress, live *metrics.Live, frame
 	pr.mu.Unlock()
 	var lastInc uint64
 	var ac rtp.AbsCaptureTimeExtension
+	var sampleFrom time.Time // the viewer's first RTP packet plus the window (WB-41)
 	for {
 		pkt, _, err := track.ReadRTP()
 		if err != nil {
 			return
 		}
 		now := time.Now()
+		if sampleFrom.IsZero() {
+			sampleFrom = now.Add(exclude)
+		}
 		arrival := now.Sub(origin)
 		live.Packet(len(pkt.Payload))
 
@@ -383,7 +406,12 @@ func readLoop(track *webrtc.TrackRemote, pr *progress, live *metrics.Live, frame
 		ds := make([]time.Duration, len(done))
 		keys := make([]bool, len(done))
 		for j, f := range done {
+			// Classified even inside the window, so the matcher's anchor is the same as
+			// with no window; only then is the frame set aside (WB-41).
 			outs[j], ds[j], keys[j] = classify(f, codec, frames, m)
+			if f.First.Before(sampleFrom) {
+				outs[j] = excluded
+			}
 		}
 		pr.mu.Lock()
 		for j, o := range outs {
@@ -402,10 +430,13 @@ func readLoop(track *webrtc.TrackRemote, pr *progress, live *metrics.Live, frame
 				pr.owd.Invalid++
 			case unmatched:
 				pr.owd.UnmatchedFrames++
+			case excluded:
+				pr.owd.ExcludedFrames++
 			case duplicate: // complete, never sampled: CompleteFrames is all it adds
 			}
 		}
 		pr.owd.IncompleteFrames = rs.Incomplete()
+		pr.owd.LateCompletedFrames = rs.LateCompleted()
 		pr.owd.FrameEnd = rs.FrameEnd()
 		pr.mu.Unlock()
 		lastInc = rs.Incomplete()
@@ -455,6 +486,7 @@ const (
 	invalid           // aliased or not logged (P6)
 	unmatched         // rejected, nothing to hash, or not in the clip
 	duplicate         // a clip duplicate: complete, never sampled
+	excluded          // its first packet arrived inside the sample window (WB-41)
 )
 
 // classify hashes and matches one complete frame; for a sample it also says whether the

@@ -47,6 +47,34 @@ func TestParseDefaultsAndDuration(t *testing.T) {
 	if s.Duration() != 40*time.Second {
 		t.Fatalf("duration %v, want ramp+hold = 40s", s.Duration())
 	}
+	// WB-41: the sample window defaults to 5 s, is filled in so the report records it,
+	// and leaves the warmup alone.
+	if s.ExcludeFirstSeconds == nil || *s.ExcludeFirstSeconds != 5 || s.ExcludeFirst() != 5*time.Second {
+		t.Fatalf("excludeFirstSeconds default: %v", s.ExcludeFirstSeconds)
+	}
+	if b, _ := json.Marshal(s); !strings.Contains(string(b), `"excludeFirstSeconds":5`) {
+		t.Fatalf("the default window is not recorded: %s", b)
+	}
+}
+
+// WB-41: an explicit 0 survives the default and samples from the first frame; a fraction
+// is kept as given.
+func TestExcludeFirstSecondsZeroAndFraction(t *testing.T) {
+	for in, want := range map[string]time.Duration{"0": 0, "0.5": 500 * time.Millisecond, "12": 12 * time.Second} {
+		s, err := Parse([]byte(`{"whep":"http://h/w","viewers":1,"holdSeconds":1,"excludeFirstSeconds":` + in + `}`))
+		if err != nil {
+			t.Fatalf("%s: %v", in, err)
+		}
+		if s.ExcludeFirst() != want {
+			t.Errorf("excludeFirstSeconds %s: window %v, want %v", in, s.ExcludeFirst(), want)
+		}
+		if b, _ := json.Marshal(s); !strings.Contains(string(b), `"excludeFirstSeconds":`+in) {
+			t.Errorf("excludeFirstSeconds %s is not recorded: %s", in, b)
+		}
+	}
+	if (Scenario{}).ExcludeFirst() != 5*time.Second {
+		t.Error("a scenario that skipped Normalise must still get the default window")
+	}
 }
 
 func TestParseRejects(t *testing.T) {
@@ -59,6 +87,8 @@ func TestParseRejects(t *testing.T) {
 		{"negative ramp", `{"whep":"http://h/w","viewers":1,"holdSeconds":1,"rampSeconds":-1}`, "rampSeconds"},
 		{"codec", `{"whep":"http://h/w","viewers":1,"holdSeconds":1,"codec":"av1"}`, "codec"},
 		{"trailing", `{"whep":"http://h/w","viewers":1,"holdSeconds":1} {}`, "trailing"},
+		{"negative window", `{"whep":"http://h/w","viewers":1,"holdSeconds":1,"excludeFirstSeconds":-1}`, "excludeFirstSeconds must not be negative"},
+		{"huge window", `{"whep":"http://h/w","viewers":1,"holdSeconds":1,"excludeFirstSeconds":3601}`, "excludeFirstSeconds must be at most 3600"},
 	} {
 		_, err := Parse([]byte(tc.json))
 		if err == nil || !strings.Contains(err.Error(), tc.want) {

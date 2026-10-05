@@ -17,10 +17,12 @@ clips.go                 package whipbench: the two clips, embedded with go:embe
 cmd/whipbench/           the CLI: publish, view, run, version; exit 0/1/2/3
 internal/clip/           IVF and Annex-B parsing into loopable frames, RTP timestamps; an
                          H.264 stream's frame rate from its SPS VUI (sps.go)
-internal/rtc/            the one pion API every peer uses: codecs, abs-capture-time, ICE options
+internal/rtc/            the one pion API every peer uses: codecs, abs-capture-time, ICE options,
+                         interceptors ahead of pion's defaults, the NACK counter (nack.go, WB-41)
 internal/whip/           the HTTP half of WHIP/WHEP; errors that never carry a URL
 internal/publisher/      WHIP publisher: paced loop, send-time stamp per packet
-internal/viewer/         WHEP viewer: join times, stats, one-way delay and packet transit or why not
+internal/viewer/         WHEP viewer: join times, stats, NACKs sent, one-way delay after its sample
+                         window (WB-41) and packet transit, or why not
 internal/fingerprint/    frame fingerprints, the clip's table, the send log and the match (WB-38)
 internal/reassembler/    per-viewer frame reassembly: packets and arrivals in, complete frames out
 internal/rtpstats/       loss, jitter, keyframes, stalls — pure arithmetic (RFC 3550)
@@ -36,7 +38,8 @@ internal/metrics/        live counters and the hand-written Prometheus expositio
                          examples/grafana/'s dashboard to the names /metrics serves
 internal/procstat/       the client's own CPU (getrusage, linux and darwin), goroutines and heap,
                          read on demand for /metrics and the report's client.resources (WB-17)
-internal/testserver/     in-process WHIP/WHEP relay for the end-to-end tests
+internal/testserver/     in-process WHIP/WHEP relay for the end-to-end tests; it can drop packets for
+                         good or lose them beneath its NACK responder, which resends them (WB-41)
 internal/version/        the version string reports carry
 testdata/                clip-vp8.ivf, clip-h264.h264 (made by scripts/make-clips.sh)
 examples/                scenario files for a local MediaMTX; grafana/: a dashboard over /metrics
@@ -93,6 +96,13 @@ Do not weaken these; they are what makes a number from whipbench worth quoting.
   refuses the module; built with `goinstall`, its staticcheck/unused IR builder
   (honnef.co/go/tools v0.7.0) panics on Go 1.27's `internal/poll`, so CI runs it with
   those two disabled (2026-10-01). Lift that when a release handles 1.27.
+- **pion's stats interceptor never sees a NACK the NACK generator sends**: interceptor
+  v0.1.49's chain wraps RTCP writers in registration order (`chain.go:28-34`), the
+  generator writes to the writer it was bound with (`pkg/nack/generator_interceptor.go:82-95`,
+  `:227`), and webrtc v4.2.22's `RegisterDefaultInterceptors` registers it before the stats
+  interceptor (`interceptor.go:55`, `:69`), so `InboundRTPStreamStats.NACKCount` stays 0.
+  `rtc.NACKCounter`, registered ahead of the defaults, counts them; a retransmission without
+  RTX arrives on its original sequence number and `rtpstats` counts it received (2026-10-05).
 - **RFC 3550**: extended sequence numbers and loss in A.1/A.3, interarrival jitter in
   §6.4.1/A.8. **RFC 9725**: POST an SDP offer, 201 with the answer and `Location`,
   DELETE the resource to end the session.
