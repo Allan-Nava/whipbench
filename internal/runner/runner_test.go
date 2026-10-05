@@ -6,6 +6,7 @@ package runner_test
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"math"
 	"net"
@@ -137,6 +138,8 @@ func TestRoundTripVP8(t *testing.T) {
 	if p.LoopMinMs == nil || *p.LoopMinMs <= 3000 {
 		t.Errorf("loopMinMs %v, want > 3000", p.LoopMinMs)
 	}
+	// WB-44: the pooled split by frame kind adds up, and a 3 s hold sees both kinds.
+	checkFrameKinds(t, "pooled", p.Samples, p.Keyframes, p.DeltaFrames)
 	// WB-40: one process, one monotonic clock, so the figure is comparable.
 	if rep.Topology != report.TopologySingleProcess || rep.Clock.Method != report.ClockMonotonic || rep.Clock.UncertaintyMs == nil {
 		t.Errorf("topology %q, clock %+v", rep.Topology, rep.Clock)
@@ -161,7 +164,22 @@ func checkFingerprintViewers(t *testing.T, rep *report.Report) {
 			b.Samples == 0 || b.Invalid != 0 || b.UnmatchedFrames != 0 {
 			t.Errorf("viewer %d: one-way delay block %+v", v.ID, b)
 		}
+		checkFrameKinds(t, fmt.Sprintf("viewer %d", v.ID), b.Samples, b.Keyframes, b.DeltaFrames)
 	}
+}
+
+// checkFrameKinds asserts WB-44's invariant on one block: keyframes and delta frames add
+// up to its samples, and both kinds were sampled, each with a summary of its own.
+func checkFrameKinds(t *testing.T, who string, samples uint64, key, delta viewer.FrameKindDelay) {
+	t.Helper()
+	if key.Samples+delta.Samples != samples {
+		t.Errorf("%s: keyframes %d + delta frames %d != samples %d", who, key.Samples, delta.Samples, samples)
+	}
+	if key.Samples == 0 || key.Ms == nil || delta.Samples == 0 || delta.Ms == nil {
+		t.Errorf("%s: keyframes %+v, delta frames %+v; want both sampled", who, key, delta)
+		return
+	}
+	t.Logf("%s: keyframes n %d p50 %.2f ms; delta frames n %d p50 %.2f ms", who, key.Samples, key.Ms.P50, delta.Samples, delta.Ms.P50)
 }
 
 // WB-8: a seeded offset moves each viewer's start, and the report says by how much.
@@ -199,9 +217,11 @@ func TestRoundTripH264(t *testing.T) {
 		}
 	}
 	checkFingerprintViewers(t, rep)
-	if p := rep.Aggregate.FingerprintDelay(); !p.Available || p.Viewers != 2 {
+	p := rep.Aggregate.FingerprintDelay()
+	if !p.Available || p.Viewers != 2 {
 		t.Errorf("pooled one-way delay: %+v", p)
 	}
+	checkFrameKinds(t, "pooled", p.Samples, p.Keyframes, p.DeltaFrames)
 }
 
 // publishFor streams the embedded VP8 clip for one second to a relay, with the given

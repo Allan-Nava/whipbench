@@ -204,10 +204,16 @@ method and WB-5 is in `evals/`.**
   with scaling lists, every POC type, emulation prevention), `publish --fps` gives or
   overrides it, and a stream with neither is refused; checked on x264 clips at 24, 25,
   29.97 and 60 fps. <!-- wb: prio=low size=S labels=client ver=0.1.0 -->
-- [ ] **WB-44 — One-way delay split by keyframe and delta frame**: a keyframe spans many
+- [x] **WB-44 — One-way delay split by keyframe and delta frame**: a keyframe spans many
   packets and a delta frame few, so their first-to-last spread differs; report both
   distributions beside the pooled figure, as WB-38's Questions phase deferred (Q3).
-  <!-- wb: prio=low size=M labels=measurement,report -->
+  Done 2026-10-05: every one-way delay block, per viewer and pooled, gains `keyframes`
+  and `deltaFrames` (`samples`, `ms`), split by the clip frame each sample matched where
+  the viewer records it, so the two add up to `samples`; the pooled figure and its
+  comparability are unchanged, and the Markdown adds two rows under it. Over six runs of
+  the round-trip test through the in-process relay, the embedded VP8 clip's pooled p50
+  was 0.9–2.0 ms for keyframes (14 samples a run) against 0.6–0.9 ms for delta frames
+  (about 418). <!-- wb: prio=low size=M labels=measurement,report ver=main -->
 
 ## v0.3.0 — The comparative report across four servers <!-- ms: phase=later -->
 

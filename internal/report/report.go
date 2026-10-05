@@ -137,6 +137,10 @@ type OneWayDelay struct {
 	LoopFrames      int            `json:"loopFrames"`
 	LoopMinMs       *float64       `json:"loopMinMs,omitempty"`
 	Ms              *stats.Summary `json:"ms,omitempty"`
+	// Keyframes and DeltaFrames pool the pooled samples' split by frame kind (WB-44):
+	// descriptive, not a source, so they carry no comparability of their own.
+	Keyframes   viewer.FrameKindDelay `json:"keyframes"`
+	DeltaFrames viewer.FrameKindDelay `json:"deltaFrames"`
 	// UncertaintyMs is the clock's uncertainty, present only on an available block;
 	// Comparable and NotComparableReason are the block's verdict under the report's
 	// clock (D8), and only a comparable block may be ranked (Rankable).
@@ -282,9 +286,10 @@ func normaliseOneWayDelay(bs []viewer.OneWayDelay, fp *Fingerprint) []viewer.One
 	return bs
 }
 
-// finishOneWayDelay decides Available, Reason, Samples and Ms from the counts; idempotent.
-// A block without Hist keeps the Samples it was given but is treated as having none, so a
-// summary is never invented for it.
+// finishOneWayDelay decides Available, Reason, Samples and Ms from the counts, and the
+// keyframe and delta-frame split from KeyHist and DeltaHist; idempotent. A block without
+// Hist keeps the Samples it was given but is treated as having none, so a summary is
+// never invented for it; the same holds for each half of the split.
 func finishOneWayDelay(o viewer.OneWayDelay) viewer.OneWayDelay {
 	if o.Source == "" {
 		o.Source = viewer.SourceFingerprint
@@ -292,20 +297,36 @@ func finishOneWayDelay(o viewer.OneWayDelay) viewer.OneWayDelay {
 	if o.Hist != nil {
 		o.Samples = o.Hist.Count()
 	}
-	if o.Reason != "" {
+	switch {
+	case o.Reason != "":
 		o.Available, o.Ms = false, nil
-		return o
-	}
-	if o.Samples == 0 || o.Hist == nil {
+	case o.Samples == 0 || o.Hist == nil:
 		o.Available, o.Ms = false, nil
 		o.Reason = fmt.Sprintf("no valid sample: %d complete frames (%d unmatched, %d invalid), %d incomplete",
 			o.CompleteFrames, o.UnmatchedFrames, o.Invalid, o.IncompleteFrames)
-		return o
+	default:
+		o.Available = true
+		sm := o.Hist.Summary()
+		o.Ms = &sm
 	}
-	o.Available = true
-	sm := o.Hist.Summary()
-	o.Ms = &sm
+	o.Keyframes = frameKind(o.Keyframes, o.KeyHist, o.Available)
+	o.DeltaFrames = frameKind(o.DeltaFrames, o.DeltaHist, o.Available)
 	return o
+}
+
+// frameKind finishes one half of a block's keyframe and delta-frame split (WB-44): its
+// Samples are h's count, and its Ms summarises h only when the block it splits is
+// available and the half has a sample — never a zero that looks like a measurement.
+func frameKind(d viewer.FrameKindDelay, h *stats.Histogram, available bool) viewer.FrameKindDelay {
+	if h != nil {
+		d.Samples = h.Count()
+	}
+	d.Ms = nil
+	if available && h != nil && d.Samples > 0 {
+		sm := h.Summary()
+		d.Ms = &sm
+	}
+	return d
 }
 
 // fingerprintBlock is a viewer's first fingerprint block; a viewer without one is
@@ -325,7 +346,7 @@ func aggregate(target int, vs []viewer.Result, pub *publisher.Result, fp *Finger
 	hist := stats.NewHistogram()
 	var noTransit []string
 	delay := OneWayDelay{Source: viewer.SourceFingerprint, ViewersByFrameEnd: map[string]int{}}
-	delayHist := stats.NewHistogram()
+	delayHist, keyHist, deltaHist := stats.NewHistogram(), stats.NewHistogram(), stats.NewHistogram()
 	var noDelay []string
 	for _, v := range vs {
 		if !v.Joined {
@@ -365,6 +386,8 @@ func aggregate(target int, vs []viewer.Result, pub *publisher.Result, fp *Finger
 		delay.UnmatchedFrames += b.UnmatchedFrames
 		if b.Available && b.Hist != nil {
 			delayHist.Merge(b.Hist)
+			keyHist.Merge(b.KeyHist)
+			deltaHist.Merge(b.DeltaHist)
 			delay.Viewers++
 			delay.ViewersByFrameEnd[b.FrameEnd]++
 		} else {
@@ -418,6 +441,8 @@ func aggregate(target int, vs []viewer.Result, pub *publisher.Result, fp *Finger
 	default:
 		delay.Reason = mostCommon(noDelay)
 	}
+	delay.Keyframes = frameKind(delay.Keyframes, keyHist, delay.Available)
+	delay.DeltaFrames = frameKind(delay.DeltaFrames, deltaHist, delay.Available)
 	a.OneWayDelay = []OneWayDelay{delay}
 
 	a.Valid, a.Verdict = verdict(a, pub)
@@ -481,6 +506,7 @@ var Method = []string{
 	"Jitter: RFC 3550 §6.4.1 interarrival jitter, J += (|D| − J)/16 per packet, in milliseconds.",
 	"Keyframe interval: spacing of keyframe starts in RTP time, i.e. the GOP the server delivers. The publisher's clip has a fixed 1 s GOP and cannot answer PLI, so a joining viewer waits for the next keyframe in the loop.",
 	OneWayDelayMethod,
+	FrameKindMethod,
 	ComparabilityMethod,
 	"Packet transit: the publisher stamps each packet's wall-clock send time in the abs-capture-time RTP header extension; a viewer's sample is its arrival time minus the stamp. It is network plus server forwarding plus both clients' stacks, per packet rather than per frame, on one host or synchronised clocks — not glass-to-glass. When the server does not negotiate or forward the extension, packet transit is reported unavailable, never estimated.",
 	"Percentiles are nearest-rank. Join, loss and jitter summaries take one value per joined viewer; packet transit pools every valid sample of every viewer that has it, in a histogram with 1% buckets.",
@@ -493,6 +519,10 @@ const RampOffsetMethod = "Viewer starts: viewer i of n starts i·ramp/n after th
 // OneWayDelayMethod is the definition every report carries (P1, P2), placed in Method
 // before packet transit because it is the headline.
 const OneWayDelayMethod = "One-way delay (source fingerprint): per frame, first-packet send to last-packet arrival, on the monotonic clock of the one process that runs both ends. The publisher logs t0 just before it hands a frame's first packet to the stack, by absolute frame index. Each viewer reassembles frames by RTP timestamp; t1 is the arrival of the frame's last packet — the marker packet, or, on a stream without markers, the last before the next timestamp (frameEnd). A complete frame is hashed — the first 64 bits of SHA-256 over the whole VP8 frame, or over the H.264 VCL NAL units — and matched to the latest send of that clip frame at or before t1; the sample is t1 − t0. A frame still incomplete 1 s after its first packet counts in incompleteFrames and is never hashed; a viewer's first frame and the frames still pending when it stops are not counted. A frame the depacketiser rejects or that is not in the clip counts in unmatchedFrames; a frame whose bytes repeat in the clip (duplicateFrames) is never sampled; a match the RTP timestamps prove whole loops too new, or one with no logged send at or before t1, is invalid. loopMinMs is the shortest time the publisher took to send loopFrames frames: a delay longer than that is caught only by that RTP timestamp check, and a viewer's first match is taken as it is. Retransmitted packets count like any other. Network plus server forwarding plus both clients' stacks — not glass-to-glass; a `view` run has no send log and reports it unavailable. The CPU cost of reassembling and hashing every frame on every viewer is not measured."
+
+// FrameKindMethod defines the keyframe and delta-frame split of every source block (WB-44).
+// It never says "one-way delay": that phrase names OneWayDelayMethod's line alone.
+const FrameKindMethod = "Keyframes and delta frames: every source block, per viewer and pooled, splits its samples by the clip frame each one matched — keyframes when that clip frame is a keyframe, deltaFrames otherwise — at the moment the sample is recorded, so keyframes.samples + deltaFrames.samples = samples, and the pooled split pools the same viewers as the pooled figure. Each half has its own summary, absent when it has no sample or its block is unavailable. A keyframe spans many more packets than a delta frame, and the spread from its first packet to its last is part of its sample, so the two distributions differ for reasons that are not forwarding. They describe the block's figure, which stays the headline; they are not a separate source, carry no comparability of their own and are never ranked."
 
 // ClockExchangeMethod joins Method in a report whose run was given a clock peer (WB-3).
 const ClockExchangeMethod = "Clock exchange: the viewer's host sends the publisher 16 UDP probes 10 ms apart, each carrying its wall clock t1; the publisher answers each with t1, its wall clock at receipt t2 and at send t3, in a packet no larger than the probe. Per probe, rtt = (t4 − t1) − (t3 − t2) on the viewer's monotonic clock, and offset = ((t2 − t1) + (t3 − t4)) / 2, with t4 the wall reading t1 plus the monotonic elapsed time, so a step during one probe cannot corrupt it; the offset is the publisher's clock minus the viewer's. The probe with the smallest rtt gives the point, known to within rtt/2: the exchange cannot tell an asymmetric path from an offset. Points are taken before the first viewer starts, every 30 s while viewers run and after they stop; a point with no answer within 1 s of its last probe is skipped. offsetMs is the first point's offset, uncertaintyMs the largest rtt/2 over the points, and between points the offset is piecewise-linear, held at the first and last outside them. It is a wall-clock method: a detected step makes a figure not comparable. With no point at all the method is none, with the reason. No figure applies the offset yet."

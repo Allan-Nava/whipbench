@@ -4,14 +4,14 @@
 
 > This page is **generated** from [BACKLOG.md](BACKLOG.md), the single source of truth for planned work. Regenerate it with `npm run roadmap` after editing the backlog — CI fails when the two disagree.
 
-**45 items · 16 shipped · 29 open · 8 milestones.**
+**45 items · 17 shipped · 28 open · 8 milestones.**
 
 ## At a glance
 
 | Milestone | Phase | Progress | Open | Shipped |
 |---|---|---|---|---|
 | **v0.1.0 — The latency method, and a first report that means something** | now | `##########` 100% | 0 | 8 |
-| **v0.2.0 — Simulcast, layer switches and metrics** | next | `##........` 18% | 9 | 2 |
+| **v0.2.0 — Simulcast, layer switches and metrics** | next | `###.......` 27% | 8 | 3 |
 | **v0.3.0 — The comparative report across four servers** | later | `..........` 0% | 5 | 0 |
 | **v0.4.0 — Load from many machines** | later | `..........` 0% | 3 | 0 |
 | **v0.5.0 — whipbench in CI** | later | `..........` 0% | 3 | 0 |
@@ -42,7 +42,7 @@
 - [ ] **WB-41** — Sample window and retransmission beside delay · med · M · measurement, report
 - [ ] **WB-42** — Live one-way delay series with a source label · med · S · report
 - [x] **WB-43** — Frame rate for Annex-B clips from the clip · low · S · client · `0.1.0`
-- [ ] **WB-44** — One-way delay split by keyframe and delta frame · low · M · measurement, report
+- [x] **WB-44** — One-way delay split by keyframe and delta frame · low · M · measurement, report · `main`
 
 ## v0.3.0 — The comparative report across four servers
 

@@ -240,7 +240,8 @@ func Run(ctx context.Context, id int, cfg Config) (res Result) {
 		pr.transit.hist = stats.NewHistogram()
 		if cfg.Frames != nil && cfg.SendLog != nil {
 			pr.owdOn = true
-			pr.owd = OneWayDelay{Source: SourceFingerprint, Hist: stats.NewHistogram()}
+			pr.owd = OneWayDelay{Source: SourceFingerprint, Hist: stats.NewHistogram(),
+				KeyHist: stats.NewHistogram(), DeltaHist: stats.NewHistogram()}
 		}
 		pr.mu.Unlock()
 		go drainRTCP(receiver)
@@ -380,15 +381,22 @@ func readLoop(track *webrtc.TrackRemote, pr *progress, live *metrics.Live, frame
 		}
 		outs := make([]outcome, len(done))
 		ds := make([]time.Duration, len(done))
+		keys := make([]bool, len(done))
 		for j, f := range done {
-			outs[j], ds[j] = classify(f, codec, frames, m)
+			outs[j], ds[j], keys[j] = classify(f, codec, frames, m)
 		}
 		pr.mu.Lock()
 		for j, o := range outs {
 			pr.owd.CompleteFrames++
 			switch o {
 			case sampled:
-				pr.owd.Hist.Add(float64(ds[j]) / float64(time.Millisecond))
+				v := float64(ds[j]) / float64(time.Millisecond)
+				pr.owd.Hist.Add(v)
+				if keys[j] { // the split is made here, so the two kinds add up to Hist (WB-44)
+					pr.owd.KeyHist.Add(v)
+				} else {
+					pr.owd.DeltaHist.Add(v)
+				}
 			case invalid:
 				pr.owd.Invalid++
 			case unmatched:
@@ -448,25 +456,26 @@ const (
 	duplicate         // a clip duplicate: complete, never sampled
 )
 
-// classify hashes and matches one complete frame. It runs outside pr.mu.
-func classify(f reassembler.Frame, codec string, frames *fingerprint.Table, m *fingerprint.Matcher) (outcome, time.Duration) {
+// classify hashes and matches one complete frame; for a sample it also says whether the
+// clip frame matched is a keyframe. It runs outside pr.mu.
+func classify(f reassembler.Frame, codec string, frames *fingerprint.Table, m *fingerprint.Matcher) (outcome, time.Duration, bool) {
 	if f.Rejected {
-		return unmatched, 0
+		return unmatched, 0, false
 	}
 	fp, ok := fingerprint.Of(codec, f.Payload)
 	if !ok {
-		return unmatched, 0
+		return unmatched, 0, false
 	}
 	i, st := frames.Lookup(fp)
 	switch st {
 	case fingerprint.Unique:
 		if v, d := m.Match(i, f.Timestamp, f.Arrival); v == fingerprint.Sampled {
-			return sampled, d
+			return sampled, d, frames.Key(i)
 		}
-		return invalid, 0
+		return invalid, 0, false
 	case fingerprint.Duplicate:
-		return duplicate, 0
+		return duplicate, 0, false
 	default:
-		return unmatched, 0
+		return unmatched, 0, false
 	}
 }

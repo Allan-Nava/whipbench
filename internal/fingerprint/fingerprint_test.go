@@ -147,6 +147,34 @@ func TestTableEmbeddedClips(t *testing.T) {
 	}
 }
 
+// WB-44: a sample's frame kind is the kind of the clip frame it matched, so the table
+// must say, for every index, what the clip says — 4 keyframes in 120 frames, one per GOP.
+func TestTableKeyframes(t *testing.T) {
+	for _, codec := range []string{clip.VP8, clip.H264} {
+		c := load(t, codec)
+		tb, err := NewTable(c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		keys := 0
+		for i, f := range c.Frames {
+			if tb.Key(i) != f.Key {
+				t.Errorf("%s frame %d: Key = %v; want %v", codec, i, tb.Key(i), f.Key)
+			}
+			if f.Key {
+				keys++
+			}
+		}
+		if keys != 4 || !tb.Key(0) || tb.Key(1) || !tb.Key(30) {
+			t.Errorf("%s: %d keyframes, Key(0) %v, Key(1) %v, Key(30) %v; want 4, true, false, true",
+				codec, keys, tb.Key(0), tb.Key(1), tb.Key(30))
+		}
+		if tb.Key(-1) || tb.Key(len(c.Frames)) {
+			t.Errorf("%s: an index outside the clip is a keyframe", codec)
+		}
+	}
+}
+
 func TestTableDuplicates(t *testing.T) {
 	c := &clip.Clip{Codec: "vp8", Ticks: 3000}
 	for _, d := range []string{"f0", "f1", "f2", "f1", "f4"} {

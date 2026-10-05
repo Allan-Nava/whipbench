@@ -5,6 +5,17 @@ versions follow [SemVer](https://semver.org/). Items reference their `WB-n` back
 
 ## [Unreleased]
 
+### Added
+- One-way delay split by keyframe and delta frame (WB-44): every one-way delay block, per
+  viewer and pooled, gains `keyframes` and `deltaFrames`, each `samples` and `ms`, the
+  samples split by whether the clip frame they matched is a keyframe. The split is made
+  where the viewer records a sample, so `keyframes.samples + deltaFrames.samples =
+  samples`; a half with no sample has no `ms`. The pooled figure stays the headline and
+  keeps its comparability; the split carries none of its own, a new Method line says it is
+  descriptive and never ranked, and the Markdown adds "one-way delay, keyframes" and
+  "one-way delay, delta frames" under the pooled row. `fingerprint.Table.Key` says which
+  clip frames are keyframes. Schema still `whipbench.report/v0`.
+
 ## [0.1.0] — 2026-10-05
 
 The latency method, and a first report that means something. `run` reports one-way delay
