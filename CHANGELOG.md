@@ -6,6 +6,10 @@ versions follow [SemVer](https://semver.org/). Items reference their `WB-n` back
 ## [Unreleased]
 
 ### Added
+- `evals/2026-10-05-mediamtx-one-way-delay.md` (WB-5): the 0.0.1 smoke scenarios against
+  MediaMTX v1.21.1 with WB-38's one-way delay — p50 2.5 ms (10 viewers), 4.4 ms (50, VP8)
+  and 5.1 ms (50, H.264), every complete frame sampled, comparable, no step; the reports
+  beside it.
 - `evals/2026-10-04-server-forwarding.md` (WB-4): what MediaMTX, OvenMediaEngine, LiveKit
   and Janus forward. No server negotiates abs-capture-time on either leg; Janus 1.1.2 behind
   Meetecho's WHIP/WHEP servers forwards frames byte for byte with their markers, with the
