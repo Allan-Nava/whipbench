@@ -17,7 +17,7 @@ synced from it one way on every push to `main` that changes this file.
 ```
 
 - The **id never changes**; a new item takes the next free number.
-- `- [ ]` open, `- [x]` shipped with `ver=x.y.z` (or `ver=main` when merged, unreleased);
+- `- [ ]` open, `- [x]` shipped with `ver=x.y.z` (or `ver=0.1.0` when merged, unreleased);
   decided against → ticked with `ver=dropped` and the reason in the body.
 - Labels: `client`, `measurement`, `benchmark`, `report`, `research`, `release`, `docs`,
   `project`, `tests`, `enhancement`.
@@ -41,7 +41,7 @@ method and WB-5 is in `evals/`.**
   maintainer; the decision is one-way delay per frame by fingerprint (WB-38), the
   abs-capture-time stamp once per frame (WB-39), topology and clock in the report (WB-40),
   the window and retransmissions beside it (WB-41); the 0.0.1 metric is packet transit.
-  <!-- wb: prio=high size=L labels=research,measurement ver=main -->
+  <!-- wb: prio=high size=L labels=research,measurement ver=0.1.0 -->
 - [x] **WB-3 — Clock exchange between publish and view**: how a split run, publisher and
   viewers on different hosts, measures the clock offset it runs with (WB-1, D6).
   `whipbench publish` answers a small clock responder, opt-in by flag, and
@@ -57,7 +57,7 @@ method and WB-5 is in `evals/`.**
   viewers, method `exchange` with `points`, the first point's offset and the largest
   RTT/2 as uncertainty, a step making it not comparable; a silent peer gives `none` with
   "clock peer did not answer". No figure applies the offset yet — WB-39 is first.
-  <!-- wb: prio=high size=M labels=client,measurement ver=main -->
+  <!-- wb: prio=high size=M labels=client,measurement ver=0.1.0 -->
 - [x] **WB-4 — What each server forwards: extensions, payload bytes, marker bit**: for
   MediaMTX, OvenMediaEngine, LiveKit and Janus, record whether the WHIP and WHEP answers
   negotiate abs-capture-time, whether the server forwards it, rewrites it or strips it,
@@ -72,7 +72,7 @@ method and WB-5 is in `evals/`.**
   servers forwards frames byte for byte with their markers, through a Streaming mountpoint
   since its VideoRoom WHEP needs a server offer; OvenMediaEngine v0.21.0 takes WHIP but has
   no WHEP (404), and LiveKit has neither without Ingress transcoding — whipbench cannot view
-  either (WB-45). <!-- wb: prio=high size=M labels=research,benchmark ver=main -->
+  either (WB-45). <!-- wb: prio=high size=M labels=research,benchmark ver=0.1.0 -->
 - [x] **WB-5 — Live run against MediaMTX with the decided method**: the 0.0.1 smoke run
   repeated with WB-1's method, one-way delay by frame fingerprint (WB-38), published in
   `evals/` as the first report that carries a one-way delay figure or says, with
@@ -80,7 +80,7 @@ method and WB-5 is in `evals/`.**
   the three smoke scenarios at `28dcd49`, every complete frame sampled, comparable, no step —
   p50 2.5 ms with 10 viewers, 4.4 ms (VP8) and 5.1 ms (H.264) with 50; client and server on
   one laptop, so the growth with viewers is not attributed (WB-25).
-  <!-- wb: prio=high size=M labels=benchmark ver=main -->
+  <!-- wb: prio=high size=M labels=benchmark ver=0.1.0 -->
 - [x] **WB-6 — Ethics of load-testing managed services**: write down the rule the README
   states in one line — only servers you run, a managed service only on your own account
   and within its terms, or with written permission — and what a run against a managed
@@ -89,14 +89,14 @@ method and WB-5 is in `evals/`.**
   rule, what to check before a managed run, and the fields its evals file records
   (service, plan, region, permission, window); linked from the README's Load-testing
   etiquette section, the usage text, CONTRIBUTING and CLAUDE.md; `check-repo.sh` holds
-  the README to the rule. <!-- wb: prio=high size=S labels=docs,research ver=main -->
+  the README to the rule. <!-- wb: prio=high size=S labels=docs,research ver=0.1.0 -->
 - [x] **WB-7 — Move the backlog tooling to backlogsync**: `scripts/backlog.mjs` and
   `.github/workflows/backlog-issues.yml` are copied from a sibling repository for now.
   Replace both with `Allan-Nava/backlogsync` once that tool reaches 0.1.0, keeping the
   `WB-n` ids and the issue titles unchanged. Done 2026-10-01: the CI `backlog`
   job, `backlog-issues.yml` and `release-drift.yml` on backlogsync `@backlogsync--v0.1.0`,
   `npm run backlog` / `npm run roadmap` on `npx backlogsync@0.1.0`; the old script, its test
-  and fixtures removed. <!-- wb: prio=low size=S labels=project ver=main -->
+  and fixtures removed. <!-- wb: prio=low size=S labels=project ver=0.1.0 -->
 - [x] **WB-8 — Ramp phase against the GOP**: the ramp is deterministic, so when its step
   is a multiple of the 1 s GOP every viewer arrives at the same point of it and join
   times cluster (the 10-viewer MediaMTX run: p50 1003 ms, min 1001 ms). Add an optional
@@ -106,7 +106,7 @@ method and WB-5 is in `evals/`.**
   `run`; offsets uniform in [0, bound) from SplitMix64, written out in
   `internal/scenario` and pinned by its reference vectors; the report records the seed,
   the bound and each viewer's `rampOffsetMs`. Off by default.
-  <!-- wb: prio=med size=S labels=measurement ver=main -->
+  <!-- wb: prio=med size=S labels=measurement ver=0.1.0 -->
 - [x] **WB-38 — One-way delay by frame fingerprint**: the headline delay figure, and the
   one WB-5 publishes (WB-1, D2 and D4 in `thoughts/WB-1-latency-method/02-design.md`). In
   `run` the publisher logs t0 = `time.Now()` just before each frame's first `WriteRTP`,
@@ -126,7 +126,7 @@ method and WB-5 is in `evals/`.**
   two departures from this text, approved in the Design — whipbench's own reassembler
   instead of samplebuilder (D4), retransmissions beside the figure only with WB-41 (D6)
   — and the loop is counted in frames, not seconds (D3).
-  <!-- wb: prio=high size=L labels=measurement,client ver=main -->
+  <!-- wb: prio=high size=L labels=measurement,client ver=0.1.0 -->
 
 ## v0.2.0 — Simulcast, layer switches and metrics <!-- ms: phase=next -->
 
@@ -178,7 +178,7 @@ method and WB-5 is in `evals/`.**
   flagged a laptop's steady 2.8 ppm drift on every run — and `none` in `view` (WB-3 fills it), `uncertaintyMs`, `comparable` and
   `notComparableReason` on every one-way delay block, and `report.Rankable` for WB-21;
   `rewritten` and `sourcesDisagree` wait for WB-39's second source.
-  <!-- wb: prio=high size=M labels=report,measurement ver=main -->
+  <!-- wb: prio=high size=M labels=report,measurement ver=0.1.0 -->
 - [ ] **WB-41 — Sample window and retransmission beside delay**: what one-way delay is
   sampled over, and what sits next to it (WB-1, D7). A new scenario key
   `excludeFirstSeconds` (default 5) drops each viewer's first seconds, counted from its
@@ -203,7 +203,7 @@ method and WB-5 is in `evals/`.**
   Done 2026-10-04: `internal/clip/sps.go` reads `timing_info` from the first SPS (profiles
   with scaling lists, every POC type, emulation prevention), `publish --fps` gives or
   overrides it, and a stream with neither is refused; checked on x264 clips at 24, 25,
-  29.97 and 60 fps. <!-- wb: prio=low size=S labels=client ver=main -->
+  29.97 and 60 fps. <!-- wb: prio=low size=S labels=client ver=0.1.0 -->
 - [ ] **WB-44 — One-way delay split by keyframe and delta frame**: a keyframe spans many
   packets and a delta frame few, so their first-to-last spread differs; report both
   distributions beside the pooled figure, as WB-38's Questions phase deferred (Q3).
@@ -331,22 +331,22 @@ reviewed before the latency method is decided.
 - [x] **WB-9 — WHIP publisher**: the embedded synthetic clip (VP8 IVF and H.264 Annex-B,
   regenerated by `scripts/make-clips.sh`), looped with continuous RTP timestamps, paced at
   the frame rate, every packet stamped with its send time in abs-capture-time when the
-  server accepts it. <!-- wb: prio=high size=M labels=client ver=main -->
+  server accepts it. <!-- wb: prio=high size=M labels=client ver=0.1.0 -->
 - [x] **WB-10 — WHEP viewers**: N concurrent native viewers; join time to the first RTP
   packet and the first complete keyframe, loss from sequence numbers, RFC 3550 jitter,
   keyframe interval, stalls, one-way delay or the reason it is unavailable.
-  <!-- wb: prio=high size=M labels=client,measurement ver=main -->
+  <!-- wb: prio=high size=M labels=client,measurement ver=0.1.0 -->
 - [x] **WB-11 — Scenarios and the ramp**: `whipbench run scenario.json` with `viewers`,
   `rampSeconds`, `holdSeconds`, strict JSON, `whipbench view` for viewers alone.
-  <!-- wb: prio=high size=S labels=client ver=main -->
+  <!-- wb: prio=high size=S labels=client ver=0.1.0 -->
 - [x] **WB-12 — Reports**: JSON and Markdown, hosts only, nearest-rank p50/p95/p99, error
   counts, a per-second timeline, the definitions carried in the report, the no-verdict
-  rule, and a hand-written Prometheus `/metrics`. <!-- wb: prio=high size=M labels=report ver=main -->
+  rule, and a hand-written Prometheus `/metrics`. <!-- wb: prio=high size=M labels=report ver=0.1.0 -->
 - [x] **WB-13 — Tests without a server**: an in-process WHIP/WHEP relay on pion
   (`internal/testserver`) for real publisher → relay → viewers round trips on loopback,
   plus the loss, jitter, ramp, no-verdict and redaction maths on synthetic input.
-  <!-- wb: prio=high size=M labels=tests ver=main -->
+  <!-- wb: prio=high size=M labels=tests ver=0.1.0 -->
 - [x] **WB-14 — Repo operating model and a smoke run**: CI (vet, race tests, lint,
   cross-builds, the leak check over the history), release by tag with checksums and
   attestations, release drift, CodeQL, Pages from the README, backlog sync; MediaMTX
-  measured locally in `evals/`. <!-- wb: prio=med size=M labels=project,release ver=main -->
+  measured locally in `evals/`. <!-- wb: prio=med size=M labels=project,release ver=0.1.0 -->

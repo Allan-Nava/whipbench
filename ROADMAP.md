@@ -21,14 +21,14 @@
 
 ## v0.1.0 — The latency method, and a first report that means something
 
-- [x] **WB-1** — Latency method: run QRSPI on it · high · L · research, measurement · `main`
-- [x] **WB-3** — Clock exchange between publish and view · high · M · client, measurement · `main`
-- [x] **WB-4** — What each server forwards: extensions, payload bytes, marker bit · high · M · research, benchmark · `main`
-- [x] **WB-5** — Live run against MediaMTX with the decided method · high · M · benchmark · `main`
-- [x] **WB-6** — Ethics of load-testing managed services · high · S · docs, research · `main`
-- [x] **WB-7** — Move the backlog tooling to backlogsync · low · S · project · `main`
-- [x] **WB-8** — Ramp phase against the GOP · med · S · measurement · `main`
-- [x] **WB-38** — One-way delay by frame fingerprint · high · L · measurement, client · `main`
+- [x] **WB-1** — Latency method: run QRSPI on it · high · L · research, measurement · `0.1.0`
+- [x] **WB-3** — Clock exchange between publish and view · high · M · client, measurement · `0.1.0`
+- [x] **WB-4** — What each server forwards: extensions, payload bytes, marker bit · high · M · research, benchmark · `0.1.0`
+- [x] **WB-5** — Live run against MediaMTX with the decided method · high · M · benchmark · `0.1.0`
+- [x] **WB-6** — Ethics of load-testing managed services · high · S · docs, research · `0.1.0`
+- [x] **WB-7** — Move the backlog tooling to backlogsync · low · S · project · `0.1.0`
+- [x] **WB-8** — Ramp phase against the GOP · med · S · measurement · `0.1.0`
+- [x] **WB-38** — One-way delay by frame fingerprint · high · L · measurement, client · `0.1.0`
 
 ## v0.2.0 — Simulcast, layer switches and metrics
 
@@ -38,10 +38,10 @@
 - [ ] **WB-18** — Audio · med · M · client
 - [ ] **WB-19** — STUN, TURN and trickle ICE · low · M · client
 - [ ] **WB-39** — abs-capture-time once per frame · med · M · measurement, client
-- [x] **WB-40** — Topology, clock and comparability in the report · high · M · report, measurement · `main`
+- [x] **WB-40** — Topology, clock and comparability in the report · high · M · report, measurement · `0.1.0`
 - [ ] **WB-41** — Sample window and retransmission beside delay · med · M · measurement, report
 - [ ] **WB-42** — Live one-way delay series with a source label · med · S · report
-- [x] **WB-43** — Frame rate for Annex-B clips from the clip · low · S · client · `main`
+- [x] **WB-43** — Frame rate for Annex-B clips from the clip · low · S · client · `0.1.0`
 - [ ] **WB-44** — One-way delay split by keyframe and delta frame · low · M · measurement, report
 
 ## v0.3.0 — The comparative report across four servers
@@ -81,9 +81,9 @@
 
 ## v0.0.1 — The first binary
 
-- [x] **WB-9** — WHIP publisher · high · M · client · `main`
-- [x] **WB-10** — WHEP viewers · high · M · client, measurement · `main`
-- [x] **WB-11** — Scenarios and the ramp · high · S · client · `main`
-- [x] **WB-12** — Reports · high · M · report · `main`
-- [x] **WB-13** — Tests without a server · high · M · tests · `main`
-- [x] **WB-14** — Repo operating model and a smoke run · med · M · project, release · `main`
+- [x] **WB-9** — WHIP publisher · high · M · client · `0.1.0`
+- [x] **WB-10** — WHEP viewers · high · M · client, measurement · `0.1.0`
+- [x] **WB-11** — Scenarios and the ramp · high · S · client · `0.1.0`
+- [x] **WB-12** — Reports · high · M · report · `0.1.0`
+- [x] **WB-13** — Tests without a server · high · M · tests · `0.1.0`
+- [x] **WB-14** — Repo operating model and a smoke run · med · M · project, release · `0.1.0`

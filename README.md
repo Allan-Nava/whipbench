@@ -4,7 +4,7 @@
 
 whipbench publishes a synthetic clip over **WHIP** (RFC 9725), plays it back with any number of **WHEP** viewers, and writes a report of what an operator cares about — one-way delay, join time, packet transit, packet loss, jitter, keyframe interval and run stability — with the same definitions whichever server sits in the middle. The clients are native Go on [pion/webrtc](https://github.com/pion/webrtc) v4, with no browser, so one machine can drive many viewers, and the report is meant to be laid next to another server's.
 
-**Status: 0.0.1, not released.** The clients, the report and the in-process test relay work, and the live runs against MediaMTX are in [`evals/`](evals/), the latest with a one-way delay figure (p50 2.5 ms with 10 viewers on one laptop, WB-5). MediaMTX does not negotiate the header extension 0.0.1's stamp travels in, so against it packet transit is reported **unavailable** — by design, never estimated. The delay method of the next milestone is decided ([WB-1](BACKLOG.md)) and built: `run` reports one-way delay per frame, by frame fingerprint, which needs no header extension ([WB-38](BACKLOG.md)), and every report says whether that figure may be ranked against another's ([WB-40](BACKLOG.md)); the first live figure is [WB-5](BACKLOG.md)'s.
+**Status: 0.1.0, the first release** ([binaries](https://github.com/Allan-Nava/whipbench/releases)). The clients, the report and the in-process test relay work, and the live runs against MediaMTX are in [`evals/`](evals/), the latest with a one-way delay figure (p50 2.5 ms with 10 viewers on one laptop, WB-5). MediaMTX does not negotiate the header extension 0.0.1's stamp travels in, so against it packet transit is reported **unavailable** — by design, never estimated. The delay method is decided ([WB-1](BACKLOG.md)) and built: `run` reports one-way delay per frame, by frame fingerprint, which needs no header extension ([WB-38](BACKLOG.md)), and every report says whether that figure may be ranked against another's ([WB-40](BACKLOG.md)); the first live figure is [WB-5](BACKLOG.md)'s.
 
 ## Install
 
@@ -15,7 +15,13 @@ go install github.com/Allan-Nava/whipbench/cmd/whipbench@latest
 whipbench version
 ```
 
-The two synthetic clips are embedded in the binary; nothing else has to sit beside it. Release binaries for Linux and macOS (amd64 and arm64) with checksums will be attached to each tagged release.
+Or download a release binary — Linux and macOS, amd64 and arm64, static — from [the releases page](https://github.com/Allan-Nava/whipbench/releases), with a checksums file and build provenance you can verify:
+
+```bash
+gh attestation verify whipbench-v0.1.0-linux-amd64 --repo Allan-Nava/whipbench
+```
+
+The two synthetic clips are embedded in the binary; nothing else has to sit beside it.
 
 ## Quick start
 

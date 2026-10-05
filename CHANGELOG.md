@@ -5,6 +5,15 @@ versions follow [SemVer](https://semver.org/). Items reference their `WB-n` back
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-10-05
+
+The latency method, and a first report that means something. `run` reports one-way delay
+per frame by frame fingerprint (WB-38), which needs no header extension and so works
+against servers that forward none; every report says how its clock was set and whether the
+figure may be ranked against another's (WB-40); split runs measure the publisher's clock
+(WB-3). The first live figure against MediaMTX is in `evals/` (WB-5), with what four servers
+forward (WB-4). The first tagged release.
+
 ### Added
 - Clock exchange between `publish` and `view` (WB-3): `publish --clock-listen ADDR`
   answers a UDP exchange while it publishes — a 32-byte request, an answer of the same
