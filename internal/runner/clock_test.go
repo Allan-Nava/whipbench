@@ -133,7 +133,9 @@ func TestSplitRunMeasuresTheClockPeer(t *testing.T) {
 			t.Errorf("point %d at %v s, not after the one before", i, p.TS)
 		}
 	}
-	if c.Points[0].TS < 0 || c.Points[len(c.Points)-1].TS > rep.FinishedAt.Sub(rep.StartedAt).Seconds() {
+	// tS is rounded to the millisecond, and the report's start and end are wall readings
+	// (UTC drops the monotonic one), so the end is allowed that millisecond.
+	if c.Points[0].TS < 0 || c.Points[len(c.Points)-1].TS > rep.FinishedAt.Sub(rep.StartedAt).Seconds()+0.001 {
 		t.Errorf("points outside the run: %+v", c.Points)
 	}
 	if !strings.Contains(rep.Markdown(), fmt.Sprintf("%d points", len(c.Points))) {
