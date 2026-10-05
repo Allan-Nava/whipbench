@@ -232,6 +232,14 @@ method and WB-5 is in `evals/`.**
   the round-trip test through the in-process relay, the embedded VP8 clip's pooled p50
   was 0.9–2.0 ms for keyframes (14 samples a run) against 0.6–0.9 ms for delta frames
   (about 418). <!-- wb: prio=low size=M labels=measurement,report ver=main -->
+- [ ] **WB-46 — Count every frame a retransmission completed**: WB-41's
+  `lateCompletedFrames` counts a frame one of whose packets arrived after the frame's last
+  packet; a frame whose last packet was itself the retransmitted one is not counted, and
+  its sample includes the wait for the retransmission. On WB-41's losing test relay about
+  half the recovered packets fell into that case, so the count under-reports recovery.
+  Decide whether a frame completed by any packet that arrived after a later-sequenced one
+  counts too, and say in the Method which samples carry a retransmission wait.
+  <!-- wb: prio=low size=S labels=measurement -->
 
 ## v0.3.0 — The comparative report across four servers <!-- ms: phase=later -->
 
