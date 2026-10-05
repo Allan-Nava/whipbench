@@ -4,7 +4,7 @@
 
 whipbench publishes a synthetic clip over **WHIP** (RFC 9725), plays it back with any number of **WHEP** viewers, and writes a report of what an operator cares about — one-way delay, join time, packet transit, packet loss, jitter, keyframe interval and run stability — with the same definitions whichever server sits in the middle. The clients are native Go on [pion/webrtc](https://github.com/pion/webrtc) v4, with no browser, so one machine can drive many viewers, and the report is meant to be laid next to another server's.
 
-**Status: 0.0.1, not released.** The clients, the report and the in-process test relay work, and the first live run against MediaMTX is in [`evals/`](evals/). MediaMTX does not negotiate the header extension 0.0.1's stamp travels in, so against it packet transit is reported **unavailable** — by design, never estimated. The delay method of the next milestone is decided ([WB-1](BACKLOG.md)) and built: `run` reports one-way delay per frame, by frame fingerprint, which needs no header extension ([WB-38](BACKLOG.md)), and every report says whether that figure may be ranked against another's ([WB-40](BACKLOG.md)); the first live figure is [WB-5](BACKLOG.md)'s.
+**Status: 0.0.1, not released.** The clients, the report and the in-process test relay work, and the live runs against MediaMTX are in [`evals/`](evals/), the latest with a one-way delay figure (p50 2.5 ms with 10 viewers on one laptop, WB-5). MediaMTX does not negotiate the header extension 0.0.1's stamp travels in, so against it packet transit is reported **unavailable** — by design, never estimated. The delay method of the next milestone is decided ([WB-1](BACKLOG.md)) and built: `run` reports one-way delay per frame, by frame fingerprint, which needs no header extension ([WB-38](BACKLOG.md)), and every report says whether that figure may be ranked against another's ([WB-40](BACKLOG.md)); the first live figure is [WB-5](BACKLOG.md)'s.
 
 ## Install
 
@@ -111,6 +111,8 @@ Each run writes JSON (schema `whipbench.report/v0`) and a Markdown rendering of 
 - **Metrics.** With `--metrics 127.0.0.1:9464` (or `"metrics"` in the scenario) the run serves Prometheus text format at `/metrics`: viewers started, joined, failed and active, packets and bytes received and sent, and a histogram of packet transit (`whipbench_packet_transit_seconds`). The exposition is written by hand — a dozen series did not justify the client library's dependency tree.
 
 ## First live numbers
+
+[`evals/2026-10-05-mediamtx-one-way-delay.md`](evals/2026-10-05-mediamtx-one-way-delay.md): the same three scenarios with one-way delay by frame fingerprint (WB-5) — the first figure the report carries against a real server. p50 2.5 ms with 10 viewers, 4.4 ms (VP8) and 5.1 ms (H.264) with 50, p99 9.6–16.3 ms; every complete frame sampled, every report comparable, no clock step. Client and server shared one laptop, so the growth with the viewer count is not attributed to either.
 
 [`evals/2026-10-01-mediamtx-local.md`](evals/2026-10-01-mediamtx-local.md): MediaMTX v1.21.1 in Docker on the same laptop, 10 and 50 viewers, VP8 and H.264. All viewers joined, no packet was lost, and packet transit (the 0.0.1 reports' `latency` key) was unavailable because MediaMTX's answers did not negotiate abs-capture-time. One machine, one server, loopback: it shows the tool works end to end and nothing about how MediaMTX compares with anything.
 

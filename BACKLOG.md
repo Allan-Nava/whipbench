@@ -68,10 +68,14 @@ method and WB-5 is in `evals/`.**
   since its VideoRoom WHEP needs a server offer; OvenMediaEngine v0.21.0 takes WHIP but has
   no WHEP (404), and LiveKit has neither without Ingress transcoding — whipbench cannot view
   either (WB-45). <!-- wb: prio=high size=M labels=research,benchmark ver=main -->
-- [ ] **WB-5 — Live run against MediaMTX with the decided method**: the 0.0.1 smoke run
+- [x] **WB-5 — Live run against MediaMTX with the decided method**: the 0.0.1 smoke run
   repeated with WB-1's method, one-way delay by frame fingerprint (WB-38), published in
   `evals/` as the first report that carries a one-way delay figure or says, with
-  evidence, why it cannot. <!-- wb: prio=high size=M labels=benchmark -->
+  evidence, why it cannot. Done 2026-10-05 (`evals/2026-10-05-mediamtx-one-way-delay.md`):
+  the three smoke scenarios at `28dcd49`, every complete frame sampled, comparable, no step —
+  p50 2.5 ms with 10 viewers, 4.4 ms (VP8) and 5.1 ms (H.264) with 50; client and server on
+  one laptop, so the growth with viewers is not attributed (WB-25).
+  <!-- wb: prio=high size=M labels=benchmark ver=main -->
 - [x] **WB-6 — Ethics of load-testing managed services**: write down the rule the README
   states in one line — only servers you run, a managed service only on your own account
   and within its terms, or with written permission — and what a run against a managed
