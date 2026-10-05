@@ -75,12 +75,14 @@ const (
 	Duplicate               // in two or more clip frames: sent, never sampled (Q7)
 )
 
-// Table maps every clip frame's fingerprint to its index i in the loop. It is built
-// once per run and only read afterwards, so every viewer shares one without a lock.
+// Table maps every clip frame's fingerprint to its index i in the loop, and says which
+// clip frames are keyframes. It is built once per run and only read afterwards, so every
+// viewer shares one without a lock.
 type Table struct {
 	codec     string
 	ticks     uint32
 	frames    int
+	keys      []bool
 	index     map[uint64]int
 	dups      map[uint64]struct{}
 	dupFrames int
@@ -98,8 +100,10 @@ func NewTable(c *clip.Clip) (*Table, error) {
 		return nil, errors.New("fingerprint: the clip has no frame duration (Ticks is 0)")
 	}
 	fps := make([]uint64, len(c.Frames))
+	keys := make([]bool, len(c.Frames))
 	seen := make(map[uint64]int, len(c.Frames))
 	for i, f := range c.Frames {
+		keys[i] = f.Key
 		fp, ok := Of(c.Codec, f.Data)
 		if !ok {
 			return nil, fmt.Errorf("fingerprint: clip frame %d has nothing to hash", i)
@@ -111,6 +115,7 @@ func NewTable(c *clip.Clip) (*Table, error) {
 		codec:  c.Codec,
 		ticks:  c.Ticks,
 		frames: len(c.Frames),
+		keys:   keys,
 		index:  make(map[uint64]int, len(c.Frames)),
 		dups:   make(map[uint64]struct{}),
 	}
@@ -136,6 +141,10 @@ func (t *Table) Lookup(fp uint64) (i int, st Status) {
 	}
 	return -1, Unknown
 }
+
+// Key says whether clip frame i is a keyframe (clip.Frame.Key); false for an index
+// outside the clip. A sample's frame kind is the kind of the clip frame it matched (WB-44).
+func (t *Table) Key(i int) bool { return i >= 0 && i < len(t.keys) && t.keys[i] }
 
 // Frames is N, the clip's frame count: the modulus that turns an absolute frame index
 // k into the clip index i.

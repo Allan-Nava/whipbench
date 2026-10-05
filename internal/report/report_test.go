@@ -211,6 +211,94 @@ func TestOneWayDelayPools(t *testing.T) {
 	}
 }
 
+// buildSplit is buildPools with every sample also split by frame kind, as the viewer
+// records it: viewer 0 has one keyframe and one delta frame, viewer 1 a delta frame only,
+// viewer 2 no sample.
+func buildSplit() *Report {
+	vs := viewers(3, 0)
+	vs[0].OneWayDelay = []viewer.OneWayDelay{{Source: "fingerprint", FrameEnd: "marker", CompleteFrames: 2,
+		Hist: hist(10, 20), KeyHist: hist(20), DeltaHist: hist(10)}}
+	vs[1].OneWayDelay = []viewer.OneWayDelay{{FrameEnd: "timestamp", CompleteFrames: 1,
+		Hist: hist(30), KeyHist: hist(), DeltaHist: hist(30)}}
+	vs[2].OneWayDelay = []viewer.OneWayDelay{{CompleteFrames: 5, UnmatchedFrames: 5,
+		Hist: hist(), KeyHist: hist(), DeltaHist: hist()}}
+	return buildDelay("run", &Fingerprint{LoopFrames: 120, LoopMin: 3990 * time.Millisecond}, vs)
+}
+
+// WB-44: keyframes and delta frames, per viewer and pooled, add up to the block's samples;
+// a half with no sample has no summary; the pooled figure is unchanged by the split.
+func TestOneWayDelaySplitsByFrameKind(t *testing.T) {
+	r := buildSplit()
+	for _, v := range r.Viewers {
+		b := v.OneWayDelay[0]
+		if b.Keyframes.Samples+b.DeltaFrames.Samples != b.Samples {
+			t.Errorf("viewer %d: keyframes %d + delta frames %d != samples %d", v.ID, b.Keyframes.Samples, b.DeltaFrames.Samples, b.Samples)
+		}
+		for name, d := range map[string]viewer.FrameKindDelay{"keyframes": b.Keyframes, "deltaFrames": b.DeltaFrames} {
+			if (d.Ms == nil) != (d.Samples == 0) || (d.Ms != nil && uint64(d.Ms.N) != d.Samples) {
+				t.Errorf("viewer %d %s: %d samples, ms %+v", v.ID, name, d.Samples, d.Ms)
+			}
+		}
+	}
+	if k := r.Viewers[0].OneWayDelay[0].Keyframes; k.Ms == nil || k.Ms.Min != 20 || k.Ms.Max != 20 {
+		t.Errorf("viewer 0 keyframes: %+v", k.Ms)
+	}
+	if k := r.Viewers[1].OneWayDelay[0].Keyframes; k.Samples != 0 || k.Ms != nil {
+		t.Errorf("viewer 1 has no keyframe sample, got %+v", k)
+	}
+	p := r.Aggregate.FingerprintDelay()
+	if p.Samples != 3 || p.Keyframes.Samples != 1 || p.DeltaFrames.Samples != 2 || p.Keyframes.Samples+p.DeltaFrames.Samples != p.Samples {
+		t.Errorf("pooled split: samples %d, keyframes %d, delta frames %d", p.Samples, p.Keyframes.Samples, p.DeltaFrames.Samples)
+	}
+	if p.Keyframes.Ms == nil || p.Keyframes.Ms.Max != 20 || p.DeltaFrames.Ms == nil || p.DeltaFrames.Ms.Min != 10 || p.DeltaFrames.Ms.Max != 30 {
+		t.Errorf("pooled split summaries: keyframes %+v, delta frames %+v", p.Keyframes.Ms, p.DeltaFrames.Ms)
+	}
+	if before := buildPools().Aggregate.FingerprintDelay(); *p.Ms != *before.Ms || p.Comparable != before.Comparable || p.Reason != before.Reason {
+		t.Errorf("the split changed the pooled figure: %+v, was %+v", p.Ms, before.Ms)
+	}
+	b, err := r.JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := string(b)
+	if n := strings.Count(js, `"keyframes": {`); n != 4 {
+		t.Errorf("want 4 keyframes objects (3 viewers + aggregate), got %d:\n%s", n, js)
+	}
+	if n := strings.Count(js, `"deltaFrames": {`); n != 4 {
+		t.Errorf("want 4 deltaFrames objects (3 viewers + aggregate), got %d:\n%s", n, js)
+	}
+	md := r.Markdown()
+	d := strings.Index(md, "| one-way delay (fingerprint, per frame) | 3 |")
+	k := strings.Index(md, "| one-way delay, keyframes | 1 | 20.0 ms |")
+	df := strings.Index(md, "| one-way delay, delta frames | 2 |")
+	if d < 0 || k < d || df < k {
+		t.Errorf("split rows at %d and %d, pooled at %d:\n%s", k, df, d, md)
+	}
+}
+
+// WB-44: an unavailable block's split never carries a summary, whatever its histograms
+// hold, and a half with no sample prints n 0 under an available figure.
+func TestOneWayDelaySplitIsNeverANumberWithoutASample(t *testing.T) {
+	vs := viewers(2, 0)
+	vs[0].OneWayDelay = []viewer.OneWayDelay{{Reason: "codec \"av1\" has no fingerprint", Hist: hist(10), KeyHist: hist(10), DeltaHist: hist()}}
+	vs[1].OneWayDelay = []viewer.OneWayDelay{{CompleteFrames: 2, Hist: hist(10, 11), KeyHist: hist(), DeltaHist: hist(10, 11)}}
+	r := buildDelay("run", &Fingerprint{LoopFrames: 120}, vs)
+	if b := r.Viewers[0].OneWayDelay[0]; b.Available || b.Keyframes.Ms != nil || b.DeltaFrames.Ms != nil || b.Keyframes.Samples != 1 {
+		t.Errorf("unavailable viewer block: %+v", b)
+	}
+	p := r.Aggregate.FingerprintDelay()
+	if p.Samples != 2 || p.Keyframes.Samples != 0 || p.Keyframes.Ms != nil || p.DeltaFrames.Samples != 2 {
+		t.Errorf("pooled split: %+v", p)
+	}
+	if md := r.Markdown(); !strings.Contains(md, "| one-way delay, keyframes | 0 | — | — | — | — | — |") {
+		t.Errorf("an empty half must print n 0:\n%s", md)
+	}
+	none := buildDelay("run", &Fingerprint{LoopFrames: 120}, viewers(2, 0)).Aggregate.FingerprintDelay()
+	if none.Keyframes != (viewer.FrameKindDelay{}) || none.DeltaFrames != (viewer.FrameKindDelay{}) {
+		t.Errorf("no sample at all: %+v %+v", none.Keyframes, none.DeltaFrames)
+	}
+}
+
 func TestOneWayDelayZeroSamplesIsNeverANumber(t *testing.T) {
 	vs := viewers(1, 0)
 	vs[0].OneWayDelay = []viewer.OneWayDelay{{CompleteFrames: 5, UnmatchedFrames: 5, Hist: hist()}}

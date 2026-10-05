@@ -61,6 +61,17 @@ func (r *Report) Markdown() string {
 		}
 		if b.Available && b.Ms != nil {
 			row("one-way delay (fingerprint, per frame)", *b.Ms, " ms")
+			// WB-44: the same samples split by frame kind; a half with none prints n 0.
+			for _, k := range []struct {
+				name string
+				d    viewer.FrameKindDelay
+			}{{"one-way delay, keyframes", b.Keyframes}, {"one-way delay, delta frames", b.DeltaFrames}} {
+				sm := stats.Summary{}
+				if k.d.Ms != nil {
+					sm = *k.d.Ms
+				}
+				row(k.name, sm, " ms")
+			}
 		}
 		row("join: first keyframe", a.FirstKeyframeMs, " ms")
 		row("join: first RTP packet", a.FirstRTPMs, " ms")

@@ -13,7 +13,9 @@ const SourceFingerprint = "fingerprint"
 //
 // The counts account for every complete frame: CompleteFrames = Samples + Invalid +
 // UnmatchedFrames + the frames whose fingerprint is a clip duplicate, which are never
-// sampled because their bytes cannot say which clip frame was sent.
+// sampled because their bytes cannot say which clip frame was sent. Every sample is also
+// recorded in exactly one of KeyHist and DeltaHist, by the kind of the clip frame it
+// matched, so Keyframes.Samples + DeltaFrames.Samples = Samples (WB-44).
 type OneWayDelay struct {
 	// Source names where the send instant came from; SourceFingerprint for WB-38.
 	Source string `json:"source"`
@@ -36,11 +38,28 @@ type OneWayDelay struct {
 	// Ms summarises Hist; nil whenever the block is unavailable, so a zero is never
 	// mistaken for a measurement.
 	Ms *stats.Summary `json:"ms,omitempty"`
+	// Keyframes and DeltaFrames split the samples by the kind of clip frame each matched
+	// (WB-44): a keyframe spans many packets and a delta frame few, so their
+	// first-to-last spread differs. They describe Ms and carry no comparability of their own.
+	Keyframes   FrameKindDelay `json:"keyframes"`
+	DeltaFrames FrameKindDelay `json:"deltaFrames"`
 	// UncertaintyMs, Comparable and NotComparableReason are set by the report from its
 	// clock (WB-40, D8), as in the pooled block; the uncertainty only when available.
 	UncertaintyMs       *float64 `json:"uncertaintyMs,omitempty"`
 	Comparable          bool     `json:"comparable"`
 	NotComparableReason string   `json:"notComparableReason,omitempty"`
 	// Hist holds the samples in ms; exported so the report and its tests can pool it.
-	Hist *stats.Histogram `json:"-"`
+	// KeyHist and DeltaHist hold the same samples split by frame kind.
+	Hist      *stats.Histogram `json:"-"`
+	KeyHist   *stats.Histogram `json:"-"`
+	DeltaHist *stats.Histogram `json:"-"`
+}
+
+// FrameKindDelay is the part of a one-way delay block drawn from one kind of clip frame,
+// keyframes or delta frames (WB-44). The report fills it from the block's KeyHist or
+// DeltaHist; Ms is nil whenever the subset has no sample or the block is unavailable,
+// so a zero is never mistaken for a measurement.
+type FrameKindDelay struct {
+	Samples uint64         `json:"samples"`
+	Ms      *stats.Summary `json:"ms,omitempty"`
 }
